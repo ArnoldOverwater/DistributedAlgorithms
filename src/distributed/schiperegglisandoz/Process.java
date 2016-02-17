@@ -13,6 +13,7 @@ public class Process extends UnicastRemoteObject implements SESInterface {
 	private int myId;
 	private int[] clock;
 	private int[][] buffer;
+	private SESInterface[] processes;
 	private List<Message> messageBuffer;
 	private List<String> messages;
 
@@ -27,11 +28,11 @@ public class Process extends UnicastRemoteObject implements SESInterface {
 		this.messages = new ArrayList<String>();
 	}
 
-	public void send(String text, Process recipient) {
+	public void send(String text, int recipient) {
 		clock[myId]++;
 		Message m = new Message(text, myId, buffer, clock);
-		recipient.receive(m);
-		buffer[recipient.getMyId()] = clock.clone();
+		processes[recipient].receive(m);
+		buffer[recipient] = clock.clone();
 	}
 
 	@Override
