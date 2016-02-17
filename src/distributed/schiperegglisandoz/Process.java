@@ -24,11 +24,12 @@ public class Process extends UnicastRemoteObject implements SESInterface {
 		this.clock = new int[n];
 		this.buffer = new int[n][];
 //		this.buffer[id] = new int[n];
+		this.processes = new SESInterface[n];
 		this.messageBuffer = new ArrayList<Message>();
 		this.messages = new ArrayList<String>();
 	}
 
-	public void send(String text, int recipient) {
+	public void send(String text, int recipient) throws RemoteException {
 		clock[myId]++;
 		Message m = new Message(text, myId, buffer, clock);
 		processes[recipient].receive(m);
@@ -43,6 +44,14 @@ public class Process extends UnicastRemoteObject implements SESInterface {
 
 	public int getMyId() {
 		return myId;
+	}
+
+	public SESInterface getProcess(int i) {
+		return processes[i];
+	}
+
+	public void setProcess(int i, SESInterface process) {
+		processes[i] = process;
 	}
 
 	private void checkDeliveries() {
