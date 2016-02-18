@@ -29,15 +29,15 @@ public class Process extends UnicastRemoteObject implements SESInterface {
 		this.messages = new ArrayList<String>();
 	}
 
-	public void send(String text, int recipient) throws RemoteException {
+	public synchronized void send(String text, int recipient) throws RemoteException {
 		clock[myId]++;
 		Message m = new Message(text, myId, buffer, clock);
-		processes[recipient].receive(m);
 		buffer[recipient] = clock.clone();
+		processes[recipient].receive(m);
 	}
 
 	@Override
-	public void receive(Message m) {
+	public synchronized void receive(Message m) {
 		messageBuffer.add(m);
 		checkDeliveries();
 	}
