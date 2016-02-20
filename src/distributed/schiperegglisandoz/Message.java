@@ -1,6 +1,7 @@
 package distributed.schiperegglisandoz;
 
 import java.io.Serializable;
+import java.util.Arrays;
 
 public class Message implements Serializable {
 	private static final long serialVersionUID = 4130400422360754730L;
@@ -31,6 +32,11 @@ public class Message implements Serializable {
 
 	public int[] getBuffer(int i) {
 		return buffer[i];
+	}
+
+	@Override
+	public String toString() {
+		return "Message(\""+message+"\", sender = "+senderId+", timestamp = "+Arrays.toString(timestamp)+", buffer = "+Arrays.deepToString(buffer)+")";
 	}
 
 }
