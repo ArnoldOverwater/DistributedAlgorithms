@@ -18,6 +18,52 @@ public class Process extends UnicastRemoteObject implements SESInterface {
 	protected List<Message> sent;
 	protected List<Message> delivered;
 
+	public class SendJob implements Runnable {
+
+		private Message message;
+		private int recipient;
+		private long delay;
+
+		public SendJob(Message m, int recipient, long delay) {
+			this.message = m;
+			this.recipient = recipient;
+			this.delay = delay;
+		}
+
+		@Override
+		public void run() {
+			try {
+				Thread.sleep(delay);
+			} catch (InterruptedException e) {
+			} finally {
+				try {
+					processes[recipient].receive(message);
+				} catch (RemoteException e) {
+					e.printStackTrace();
+				}
+			}
+		}
+
+	}
+
+	public class ReceiveJob implements Runnable {
+
+		private Message message;
+
+		public ReceiveJob(Message m) {
+			this.message = m;
+		}
+
+		@Override
+		public void run() {
+			synchronized (messageBuffer) {
+				messageBuffer.add(message);
+				checkDeliveries();
+			}
+		}
+
+	}
+
 	public Process(int id, int n) throws RemoteException {
 		super(0);
 		this.myId = id;
@@ -50,19 +96,12 @@ public class Process extends UnicastRemoteObject implements SESInterface {
 			sent.add(m);
 			System.out.println("Sent "+m);
 		}
-		try {
-			Thread.sleep(delay);
-		} catch (InterruptedException e) {
-		}
-		processes[recipient].receive(m);
+		new Thread(new SendJob(m, recipient, delay)).start();
 	}
 
 	@Override
 	public void receive(Message m) {
-		synchronized (messageBuffer) {
-			messageBuffer.add(m);
-			checkDeliveries();
-		}
+		new Thread(new ReceiveJob(m)).start();
 	}
 
 	protected void deliver(Message m) {
