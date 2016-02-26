@@ -3,7 +3,9 @@ package distributed.schiperegglisandoz;
 import java.rmi.RemoteException;
 import java.rmi.server.UnicastRemoteObject;
 import java.util.ArrayList;
+import java.util.Deque;
 import java.util.Iterator;
+import java.util.LinkedList;
 import java.util.List;
 
 public class Process extends UnicastRemoteObject implements SESInterface {
@@ -13,7 +15,7 @@ public class Process extends UnicastRemoteObject implements SESInterface {
 	private int[] clock;
 	private int[][] buffer;
 	private SESInterface[] processes;
-	private List<Message> messageBuffer;
+	private Deque<Message> messageBuffer;
 
 	protected List<Message> sent;
 	protected List<Message> delivered;
@@ -57,7 +59,7 @@ public class Process extends UnicastRemoteObject implements SESInterface {
 		@Override
 		public void run() {
 			synchronized (messageBuffer) {
-				messageBuffer.add(message);
+				messageBuffer.addFirst(message);
 				checkDeliveries();
 			}
 		}
@@ -70,7 +72,7 @@ public class Process extends UnicastRemoteObject implements SESInterface {
 		this.clock = new int[n];
 		this.buffer = new int[n][];
 		this.processes = new SESInterface[n];
-		this.messageBuffer = new ArrayList<Message>();
+		this.messageBuffer = new LinkedList<Message>();
 		this.sent = new ArrayList<Message>();
 		this.delivered = new ArrayList<Message>();
 	}
