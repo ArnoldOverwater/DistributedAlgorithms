@@ -18,7 +18,7 @@ public class Process extends UnicastRemoteObject implements SESInterface {
 	protected List<Message> sent;
 	protected List<Message> delivered;
 
-	public class SendJob implements Runnable {
+	private class SendJob implements Runnable {
 
 		private Message message;
 		private int recipient;
@@ -46,7 +46,7 @@ public class Process extends UnicastRemoteObject implements SESInterface {
 
 	}
 
-	public class ReceiveJob implements Runnable {
+	private class ReceiveJob implements Runnable {
 
 		private Message message;
 
