@@ -3,10 +3,13 @@ package distributed.schiperegglisandoz;
 import java.rmi.RemoteException;
 import java.rmi.server.UnicastRemoteObject;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Deque;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
+import java.util.TreeMap;
 
 public class Process extends UnicastRemoteObject implements SESInterface {
 	private static final long serialVersionUID = -6056565009547143029L;
@@ -18,7 +21,7 @@ public class Process extends UnicastRemoteObject implements SESInterface {
 	private Deque<Message> messageBuffer;
 
 	protected List<Message> sent;
-	protected List<Message> delivered;
+	protected Map<int[], Message> delivered;
 
 	private class SendJob implements Runnable {
 
@@ -74,7 +77,7 @@ public class Process extends UnicastRemoteObject implements SESInterface {
 		this.processes = new SESInterface[n];
 		this.messageBuffer = new LinkedList<Message>();
 		this.sent = new ArrayList<Message>();
-		this.delivered = new ArrayList<Message>();
+		this.delivered = new TreeMap<int[], Message>(/*TODO: Add Comparator for happened-before relation*/);
 	}
 
 	public void send(String text, int recipient) throws RemoteException {
@@ -110,6 +113,8 @@ public class Process extends UnicastRemoteObject implements SESInterface {
 		synchronized (this) {
 			clock[myId]++;
 			clock = vMax(clock, m.getTimestamp());
+			//TODO: Crashes without Comparator
+			//delivered.put(clock.clone(), m);
 			for (int i = 0; i < buffer.length; i++) {
 				int[] iBuffer = m.getBuffer(i);
 				if (buffer[i] == null)
@@ -117,7 +122,7 @@ public class Process extends UnicastRemoteObject implements SESInterface {
 				else if (iBuffer != null)
 					buffer[i] = vMax(buffer[i], iBuffer);
 			}
-			System.out.println("Delivered "+m);
+			System.out.println("Delivered "+m+" at "+Arrays.toString(clock));
 		}
 	}
 
