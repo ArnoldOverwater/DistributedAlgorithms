@@ -17,28 +17,36 @@ public class Main {
 		int id = Integer.parseInt(args[0]);
 		int n = args.length - 2;
 		System.out.println(n+" processes");
+
 		Process process = new Process(id, n);
 		Naming.bind(args[1], process);
 		System.out.println("Process with id "+id+" bound at "+args[1]);
 
-		System.out.print("Waiting 10 seconds before other processed are bound");
+		System.out.println("Waiting 10 seconds before other processed are bound");
 		Thread.sleep(10000L);
 
 		for (int i = 0; i < n; i++)
 			process.setProcess(i, (SESInterface) Naming.lookup(args[i + 2]));
 		System.out.println("Network registered successfully");
-		
+
 		Random rand = new Random();
 		int m = 5 + rand.nextInt(5);
 		for (int i = 0; i < m; i++) {
 			// Random idle time
 			Thread.sleep(rand.nextInt(5) * 100L);
+
+			// Simple prevention against sending to self
 			int recipient = rand.nextInt(n - 1);
-			if (recipient == id)
+			if (recipient >= id)
 				recipient++;
+
 			// Send with random delay
 			process.send(id+"-"+i, recipient, rand.nextInt(5) * 1000L);
 		}
+
+		System.out.println("Main thread finished; waiting 10 seconds to end process");
+		Thread.sleep(10000L);
+		System.exit(0);
 	}
 
 }
