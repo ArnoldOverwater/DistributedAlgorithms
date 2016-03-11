@@ -49,8 +49,12 @@ public class Process extends UnicastRemoteObject implements SinInterface {
 							minRequestId = requestIds[i];
 							processWithMinRequestId = i;
 						}
-					processes[processWithMinRequestId].receiveToken(token);
-					token = null;
+					try {
+						processes[processWithMinRequestId].receiveToken(token);
+						token = null;
+					} catch (RemoteException e) {
+						e.printStackTrace();
+					}
 				}
 			}
 		}
@@ -73,7 +77,7 @@ public class Process extends UnicastRemoteObject implements SinInterface {
 		this.processes = new SinInterface[n];
 	}
 
-	public void tryAccessCS() {
+	public void tryAccessCS() throws RemoteException {
 		synchronized (this) {
 			if (states[myId] == State.Holding) {
 				processes[myId].requestToken(myId, requestIds[myId]);
@@ -88,7 +92,7 @@ public class Process extends UnicastRemoteObject implements SinInterface {
 	}
 
 	@Override
-	public void requestToken(int process, int requestId) {
+	public void requestToken(int process, int requestId) throws RemoteException {
 		synchronized (this) {
 			switch (states[myId]) {
 			case Executing:
