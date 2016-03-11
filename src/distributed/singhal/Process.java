@@ -12,6 +12,55 @@ public class Process extends UnicastRemoteObject implements SinInterface {
 	private Token token;
 	private SinInterface[] processes;
 
+	private class CriticalJob implements Runnable {
+
+		@Override
+		public void run() {
+			doCS();
+			synchronized (Process.this) {
+				states[myId] = State.Other;
+				token.states[myId] = State.Other;
+				for (int i = 0; i < processes.length; i++)
+					if (requestIds[i] > token.requestIds[i]) {
+						token.requestIds[i] = requestIds[i];
+						token.states[i] = states[i];
+					} else {
+						requestIds[i] = token.requestIds[i];
+						states[i] = token.states[i];
+					}
+				boolean noRequests = true;
+				for (int i = 0; i < processes.length; i++)
+					if (states[i] != State.Other) {
+						noRequests = false;
+						break;
+					}
+				if (noRequests)
+					states[myId] = State.Holding;
+				else {
+					int minRequestId = Integer.MAX_VALUE;
+					int processWithMinRequestId = -1;
+					for (int i = myId; i >= 0; i--)
+						if (requestIds[i] <= minRequestId) {
+							minRequestId = requestIds[i];
+							processWithMinRequestId = i;
+						}
+					for (int i = processes.length-1; i > myId; i--)
+						if (requestIds[i] <= minRequestId) {
+							minRequestId = requestIds[i];
+							processWithMinRequestId = i;
+						}
+					try {
+						processes[processWithMinRequestId].receiveToken(token);
+						token = null;
+					} catch (RemoteException e) {
+						e.printStackTrace();
+					}
+				}
+			}
+		}
+
+	}
+
 	public Process(int id, int n) throws RemoteException {
 		super(0);
 		this.myId = id;
@@ -28,66 +77,52 @@ public class Process extends UnicastRemoteObject implements SinInterface {
 		this.processes = new SinInterface[n];
 	}
 
-	public void tryAccessCS() {
-		if (states[myId] == State.Holding)
-			processes[myId].requestToken(myId, requestIds[myId]);
-		//TODO: Start else block here, or not?
-		states[myId] = State.Requesting;
-		requestIds[myId]++;
-		for (int i = 0; i < processes.length; i++)
-			if (i != myId && states[i] == State.Requesting)
-				processes[i].requestToken(myId, requestIds[myId]);
+	public void tryAccessCS() throws RemoteException {
+		synchronized (this) {
+			if (states[myId] == State.Holding) {
+				processes[myId].requestToken(myId, requestIds[myId]);
+				return;
+			}
+			states[myId] = State.Requesting;
+			requestIds[myId]++;
+			for (int i = 0; i < processes.length; i++)
+				if (i != myId && states[i] == State.Requesting)
+					processes[i].requestToken(myId, requestIds[myId]);
+		}
 	}
 
 	@Override
-	public void requestToken(int process, int requestId) {
-		switch (states[myId]) {
-		case Executing:
-		case Other:
-			states[process] = State.Requesting;
-			break;
-		case Requesting:
-			if (states[process] == State.Requesting) {
+	public void requestToken(int process, int requestId) throws RemoteException {
+		synchronized (this) {
+			switch (states[myId]) {
+			case Executing:
+			case Other:
 				states[process] = State.Requesting;
-				processes[process].requestToken(myId, requestIds[myId]);
+				break;
+			case Requesting:
+				if (states[process] != State.Requesting) {
+					states[process] = State.Requesting;
+					processes[process].requestToken(myId, requestIds[myId]);
+				}
+				break;
+			case Holding:
+				states[process] = State.Requesting;
+				states[myId] = State.Other;
+				token.states[process] = State.Requesting;
+				token.requestIds[process] = requestId;
+				processes[process].receiveToken(token);
+				token = null;
 			}
-			break;
-		case Holding:
-			states[process] = State.Requesting;
-			states[myId] = State.Other;
-			token.states[process] = State.Requesting;
-			token.requestIds[process] = requestId;
-			processes[process].receiveToken(token);
-			token = null;
 		}
 	}
 
 	@Override
 	public void receiveToken(Token token) {
-		this.token = token;
-		states[myId] = State.Executing;
-		doCS();
-		states[myId] = State.Other;
-		token.states[myId] = State.Other;
-		for (int i = 0; i < processes.length; i++)
-			if (requestIds[i] > token.requestIds[i]) {
-				token.requestIds[i] = requestIds[i];
-				token.states[i] = states[i];
-			} else {
-				requestIds[i] = token.requestIds[i];
-				states[i] = token.states[i];
-			}
-		boolean noRequests = true;
-		for (int i = 0; i < processes.length; i++)
-			if (states[i] != State.Other) {
-				noRequests = false;
-				break;
-			}
-		if (noRequests)
-			states[myId] = State.Holding;
-		else {
-			//TODO: Heuristic to whom to send
+		synchronized (this) {
+			this.token = token;
+			states[myId] = State.Executing;
 		}
+		new Thread(new CriticalJob()).start();
 	}
 
 	private void doCS() {
