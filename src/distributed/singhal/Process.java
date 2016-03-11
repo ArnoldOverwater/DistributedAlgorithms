@@ -29,9 +29,10 @@ public class Process extends UnicastRemoteObject implements SinInterface {
 	}
 
 	public void tryAccessCS() {
-		if (states[myId] == State.Holding)
+		if (states[myId] == State.Holding) {
 			processes[myId].requestToken(myId, requestIds[myId]);
-		//TODO: Start else block here, or not?
+			return;
+		}
 		states[myId] = State.Requesting;
 		requestIds[myId]++;
 		for (int i = 0; i < processes.length; i++)
@@ -47,7 +48,7 @@ public class Process extends UnicastRemoteObject implements SinInterface {
 			states[process] = State.Requesting;
 			break;
 		case Requesting:
-			if (states[process] == State.Requesting) {
+			if (states[process] != State.Requesting) {
 				states[process] = State.Requesting;
 				processes[process].requestToken(myId, requestIds[myId]);
 			}
@@ -86,7 +87,20 @@ public class Process extends UnicastRemoteObject implements SinInterface {
 		if (noRequests)
 			states[myId] = State.Holding;
 		else {
-			//TODO: Heuristic to whom to send
+			int minRequestId = Integer.MAX_VALUE;
+			int processWithMinRequestId = -1;
+			for (int i = myId; i >= 0; i--)
+				if (requestIds[i] <= minRequestId) {
+					minRequestId = requestIds[i];
+					processWithMinRequestId = i;
+				}
+			for (int i = processes.length-1; i > myId; i--)
+				if (requestIds[i] <= minRequestId) {
+					minRequestId = requestIds[i];
+					processWithMinRequestId = i;
+				}
+			processes[processWithMinRequestId].receiveToken(token);
+			this.token = null;
 		}
 	}
 
