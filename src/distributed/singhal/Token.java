@@ -1,8 +1,10 @@
 package distributed.singhal;
 
+import java.io.Serializable;
 import java.util.Arrays;
 
-public class Token {
+public class Token implements Serializable {
+	private static final long serialVersionUID = 5214394158064868636L;
 
 	int[] requestIds;
 	State[] states;
