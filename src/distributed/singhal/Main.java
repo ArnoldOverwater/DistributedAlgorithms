@@ -39,6 +39,10 @@ public class Main {
 
 			process.tryAccessCS();
 		}
+
+		System.out.println("Main thread finished; waiting 10 seconds to end process");
+		Thread.sleep(10000L);
+		System.exit(0);
 	}
 
 }
