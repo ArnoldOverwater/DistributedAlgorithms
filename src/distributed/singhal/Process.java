@@ -47,10 +47,11 @@ public class Process extends UnicastRemoteObject implements SinInterface {
 					states[myId] = State.Other;
 					token.states[process] = State.Requesting;
 					token.requestIds[process] = requestId;
+					Token token = Process.this.token;
 					System.out.println("Sending "+token+" to "+process+" (RequestJob)");
+					Process.this.token = null;
 					try {
 						processes[process].receiveToken(token);
-						token = null;
 					} catch (RemoteException e) {
 						e.printStackTrace();
 					}
@@ -102,10 +103,11 @@ public class Process extends UnicastRemoteObject implements SinInterface {
 							minRequestId = requestIds[i];
 							processWithMinRequestId = i;
 						}
+					Token token = Process.this.token;
 					System.out.println("Sending "+token+" to "+processWithMinRequestId+" (CriticalJob)");
+					Process.this.token = null;
 					try {
 						processes[processWithMinRequestId].receiveToken(token);
-						token = null;
 					} catch (RemoteException e) {
 						e.printStackTrace();
 					}

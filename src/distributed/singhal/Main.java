@@ -24,12 +24,15 @@ public class Main {
 		Naming.bind(url, process);
 		System.out.println("Process with id "+id+" bound at "+url);
 
-		System.out.println("Waiting 10 seconds before other processed are bound");
-		Thread.sleep(10000L);
+		System.out.println("Waiting 5 seconds before other processed are bound");
+		Thread.sleep(5000L);
 
 		for (int i = 0; i < n; i++)
 			process.setProcess(i, (SinInterface) Naming.lookup(args[2]+i));
 		System.out.println("Network registered successfully");
+
+		System.out.println("Waiting 5 seconds before other processed have set references");
+		Thread.sleep(5000L);
 
 		Random rand = new Random();
 		int c = 3 + rand.nextInt(4);
