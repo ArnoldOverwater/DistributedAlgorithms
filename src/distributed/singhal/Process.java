@@ -25,6 +25,7 @@ public class Process extends UnicastRemoteObject implements SinInterface {
 		@Override
 		public void run() {
 			synchronized (this) {
+				System.out.println("Received request with id "+requestId+" from "+process);
 				switch (states[myId]) {
 				case Executing:
 				case Other:
@@ -33,6 +34,7 @@ public class Process extends UnicastRemoteObject implements SinInterface {
 				case Requesting:
 					if (states[process] != State.Requesting) {
 						states[process] = State.Requesting;
+						System.out.println("Sending request with id "+requestIds[myId]+" to "+process+" (RequestJob)");
 						try {
 							processes[process].requestToken(myId, requestIds[myId]);
 						} catch (RemoteException e) {
@@ -45,6 +47,7 @@ public class Process extends UnicastRemoteObject implements SinInterface {
 					states[myId] = State.Other;
 					token.states[process] = State.Requesting;
 					token.requestIds[process] = requestId;
+					System.out.println("Sending "+token+" to "+process+" (RequestJob)");
 					try {
 						processes[process].receiveToken(token);
 						token = null;
@@ -62,6 +65,7 @@ public class Process extends UnicastRemoteObject implements SinInterface {
 		@Override
 		public void run() {
 			synchronized (Process.this) {
+				System.out.println(token+" received");
 				states[myId] = State.Executing;
 			}
 			doCS();
@@ -85,9 +89,10 @@ public class Process extends UnicastRemoteObject implements SinInterface {
 				if (noRequests)
 					states[myId] = State.Holding;
 				else {
+					// Heuristic to send to process with lowest requests
 					int minRequestId = Integer.MAX_VALUE;
 					int processWithMinRequestId = -1;
-					for (int i = myId; i >= 0; i--)
+					for (int i = myId-1; i >= 0; i--)
 						if (requestIds[i] <= minRequestId) {
 							minRequestId = requestIds[i];
 							processWithMinRequestId = i;
@@ -97,6 +102,7 @@ public class Process extends UnicastRemoteObject implements SinInterface {
 							minRequestId = requestIds[i];
 							processWithMinRequestId = i;
 						}
+					System.out.println("Sending "+token+" to "+processWithMinRequestId+" (CriticalJob)");
 					try {
 						processes[processWithMinRequestId].receiveToken(token);
 						token = null;
@@ -128,14 +134,17 @@ public class Process extends UnicastRemoteObject implements SinInterface {
 	public void tryAccessCS() throws RemoteException {
 		synchronized (this) {
 			if (states[myId] == State.Holding) {
+				System.out.println("Sending requesting to self");
 				processes[myId].requestToken(myId, requestIds[myId]);
 				return;
 			}
 			states[myId] = State.Requesting;
 			requestIds[myId]++;
 			for (int i = 0; i < processes.length; i++)
-				if (i != myId && states[i] == State.Requesting)
+				if (i != myId && states[i] == State.Requesting) {
+					System.out.println("Sending request with id "+requestIds[myId]+" to "+i+" (tryAccessCS)");
 					processes[i].requestToken(myId, requestIds[myId]);
+				}
 		}
 	}
 
