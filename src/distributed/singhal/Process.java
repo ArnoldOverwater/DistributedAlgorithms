@@ -12,10 +12,58 @@ public class Process extends UnicastRemoteObject implements SinInterface {
 	private Token token;
 	private SinInterface[] processes;
 
+	public class RequestJob implements Runnable {
+
+		private int process;
+		private int requestId;
+
+		public RequestJob(int process, int requestId) {
+			this.process = process;
+			this.requestId = requestId;
+		}
+
+		@Override
+		public void run() {
+			synchronized (this) {
+				switch (states[myId]) {
+				case Executing:
+				case Other:
+					states[process] = State.Requesting;
+					break;
+				case Requesting:
+					if (states[process] != State.Requesting) {
+						states[process] = State.Requesting;
+						try {
+							processes[process].requestToken(myId, requestIds[myId]);
+						} catch (RemoteException e) {
+							e.printStackTrace();
+						}
+					}
+					break;
+				case Holding:
+					states[process] = State.Requesting;
+					states[myId] = State.Other;
+					token.states[process] = State.Requesting;
+					token.requestIds[process] = requestId;
+					try {
+						processes[process].receiveToken(token);
+						token = null;
+					} catch (RemoteException e) {
+						e.printStackTrace();
+					}
+				}
+			}
+		}
+
+	}
+
 	private class CriticalJob implements Runnable {
 
 		@Override
 		public void run() {
+			synchronized (Process.this) {
+				states[myId] = State.Executing;
+			}
 			doCS();
 			synchronized (Process.this) {
 				states[myId] = State.Other;
@@ -92,36 +140,13 @@ public class Process extends UnicastRemoteObject implements SinInterface {
 	}
 
 	@Override
-	public void requestToken(int process, int requestId) throws RemoteException {
-		synchronized (this) {
-			switch (states[myId]) {
-			case Executing:
-			case Other:
-				states[process] = State.Requesting;
-				break;
-			case Requesting:
-				if (states[process] != State.Requesting) {
-					states[process] = State.Requesting;
-					processes[process].requestToken(myId, requestIds[myId]);
-				}
-				break;
-			case Holding:
-				states[process] = State.Requesting;
-				states[myId] = State.Other;
-				token.states[process] = State.Requesting;
-				token.requestIds[process] = requestId;
-				processes[process].receiveToken(token);
-				token = null;
-			}
-		}
+	public void requestToken(int process, int requestId) {
+		new Thread(new RequestJob(process, requestId)).start();
 	}
 
 	@Override
 	public void receiveToken(Token token) {
-		synchronized (this) {
-			this.token = token;
-			states[myId] = State.Executing;
-		}
+		this.token = token;
 		new Thread(new CriticalJob()).start();
 	}
 
