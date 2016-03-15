@@ -2,6 +2,7 @@ package distributed.singhal;
 
 import java.rmi.RemoteException;
 import java.rmi.server.UnicastRemoteObject;
+import java.util.Arrays;
 
 public class Process extends UnicastRemoteObject implements SinInterface {
 	private static final long serialVersionUID = 664743885333959074L;
@@ -131,6 +132,7 @@ public class Process extends UnicastRemoteObject implements SinInterface {
 			for (int i = 0; i < id; i++)
 				this.states[i] = State.Requesting;
 		this.processes = new SinInterface[n];
+		System.out.println("Created process "+id+" with states "+Arrays.toString(states));
 	}
 
 	public void tryAccessCS() throws RemoteException {
