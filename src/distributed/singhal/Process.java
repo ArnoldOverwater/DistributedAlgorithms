@@ -46,7 +46,9 @@ public class Process extends UnicastRemoteObject implements SinInterface {
 				case Holding:
 					states[process] = State.Requesting;
 					states[myId] = State.Other;
+					//requestId[process] = requestId;
 					token.states[process] = State.Requesting;
+					token.states[myId] = State.Other;
 					token.requestIds[process] = requestId;
 					Token token = Process.this.token;
 					System.out.println("Sending "+token+" to "+process+" (RequestJob)");
@@ -82,28 +84,22 @@ public class Process extends UnicastRemoteObject implements SinInterface {
 						requestIds[i] = token.requestIds[i];
 						states[i] = token.states[i];
 					}
-				boolean noRequests = true;
-				for (int i = 0; i < processes.length; i++)
-					if (states[i] != State.Other) {
-						noRequests = false;
-						break;
+				// Heuristic to send to process with least requests
+				int minRequestId = Integer.MAX_VALUE;
+				int processWithMinRequestId = -1;
+				for (int i = myId-1; i >= 0; i--)
+					if (states[i] == State.Requesting && requestIds[i] <= minRequestId) {
+						minRequestId = requestIds[i];
+						processWithMinRequestId = i;
 					}
-				if (noRequests)
+				for (int i = processes.length-1; i >= myId; i--)
+					if (states[i] == State.Requesting && requestIds[i] <= minRequestId) {
+						minRequestId = requestIds[i];
+						processWithMinRequestId = i;
+					}
+				if (processWithMinRequestId < 0) // no requests
 					states[myId] = State.Holding;
 				else {
-					// Heuristic to send to process with lowest requests
-					int minRequestId = Integer.MAX_VALUE;
-					int processWithMinRequestId = -1;
-					for (int i = myId-1; i >= 0; i--)
-						if (requestIds[i] <= minRequestId) {
-							minRequestId = requestIds[i];
-							processWithMinRequestId = i;
-						}
-					for (int i = processes.length-1; i > myId; i--)
-						if (requestIds[i] <= minRequestId) {
-							minRequestId = requestIds[i];
-							processWithMinRequestId = i;
-						}
 					Token token = Process.this.token;
 					System.out.println("Sending "+token+" to "+processWithMinRequestId+" (CriticalJob)");
 					Process.this.token = null;
