@@ -21,7 +21,7 @@ public class Process extends UnicastRemoteObject implements SESInterface {
 	protected List<Message> sent;
 
 	private class SendJob implements Runnable {
-
+		// Represents the thread that sends messages to other processes
 		private Message message;
 		private int recipient;
 		private long delay;
@@ -35,10 +35,12 @@ public class Process extends UnicastRemoteObject implements SESInterface {
 		@Override
 		public void run() {
 			try {
+				//Add a random delay before sending the message to model network delay
 				Thread.sleep(delay);
 			} catch (InterruptedException e) {
 			} finally {
 				try {
+					// Sending a message means making the other process receive it
 					processes[recipient].receive(message);
 				} catch (RemoteException e) {
 					e.printStackTrace();
@@ -49,7 +51,7 @@ public class Process extends UnicastRemoteObject implements SESInterface {
 	}
 
 	private class ReceiveJob implements Runnable {
-
+		// Represents the thread that starts running when a message is received.
 		private Message message;
 
 		public ReceiveJob(Message m) {
@@ -58,6 +60,8 @@ public class Process extends UnicastRemoteObject implements SESInterface {
 
 		@Override
 		public void run() {
+			// Upon receiving a message, check if it (or any other messages) can be delivered.
+			// Note that only receiving a message can trigger the delivery of a message in the queue.
 			synchronized (messageBuffer) {
 				messageBuffer.addFirst(message);
 				checkDeliveries();
@@ -76,10 +80,13 @@ public class Process extends UnicastRemoteObject implements SESInterface {
 		this.sent = new ArrayList<Message>();
 	}
 
+	// Send a message without delay
 	public void send(String text, int recipient) throws RemoteException {
 		Message m;
 		synchronized (this) {
+			// Update clock before sending
 			clock[myId]++;
+			// A message consists of it's content, the ID of the sender, the buffer of the sender, and the vectorclock timestamp of the sender.
 			m = new Message(text, myId, deepClone(buffer), clock.clone());
 			buffer[recipient] = clock.clone();
 			sent.add(m);
@@ -87,11 +94,14 @@ public class Process extends UnicastRemoteObject implements SESInterface {
 		}
 		processes[recipient].receive(m);
 	}
-
+	
+	// Send a message with delay through a SendJob thread, so that this action is not blocking
 	public void send(String text, int recipient, long delay) throws RemoteException {
 		Message m;
 		synchronized (this) {
+			// Update clock before sending
 			clock[myId]++;
+			// A message consists of it's content, the ID of the sender, the buffer of the sender, and the vectorclock timestamp of the sender.
 			m = new Message(text, myId, deepClone(buffer), clock.clone());
 			buffer[recipient] = clock.clone();
 			sent.add(m);
@@ -106,6 +116,7 @@ public class Process extends UnicastRemoteObject implements SESInterface {
 	}
 
 	protected void deliver(Message m) {
+		// Deliver the message, update our clock and update the buffer with the buffer from the message
 		synchronized (this) {
 			clock[myId]++;
 			clock = vMax(clock, m.getTimestamp());
@@ -116,6 +127,7 @@ public class Process extends UnicastRemoteObject implements SESInterface {
 				else if (iBuffer != null)
 					buffer[i] = vMax(buffer[i], iBuffer);
 			}
+			// Delivering the message, in our case print it's contents
 			System.out.println("Delivered "+m+" at "+Arrays.toString(clock));
 		}
 	}
@@ -134,9 +146,11 @@ public class Process extends UnicastRemoteObject implements SESInterface {
 
 	private void checkDeliveries() {
 		Iterator<Message> iterator = messageBuffer.iterator();
+		// Check for all messages in the queue if they can be delivered yet
 		while (iterator.hasNext()) {
 			Message m = iterator.next();
 			int[] mBuffer = m.getBuffer(myId);
+			// Deliver the message if we don't have any information yet, or if it's due
 			if (mBuffer == null || vLtEq(mBuffer, clock)) {
 				deliver(m);
 				//remove message from messageBuffer
@@ -146,7 +160,8 @@ public class Process extends UnicastRemoteObject implements SESInterface {
 			}
 		}
 	}
-
+	
+	// Component-wise maximum
 	private int[] vMax(int[] vector1, int[] vector2) {
 		int[] res = new int[vector1.length];
 		for (int i = 0; i < vector1.length; i++) {
@@ -155,6 +170,7 @@ public class Process extends UnicastRemoteObject implements SESInterface {
 		return res;
 	}
 
+	// Component-wise less-than-or-equal for vector clocks
 	private boolean vLtEq(int[] vector1, int[] vector2) {
 		for (int i = 0; i < vector1.length; i++)
 			if (vector1[i] > vector2[i])

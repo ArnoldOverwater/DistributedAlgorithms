@@ -7,7 +7,7 @@ import java.rmi.NotBoundException;
 import java.util.Random;
 
 public class Main {
-
+	// Starts a single instance of the distributed system running the Schiper-Eggli-Sandoz algorithm
 	public static void main(String[] args) throws AlreadyBoundException, NotBoundException, IOException, InterruptedException {
 		if (args.length <= 2) {
 			System.err.println("Usage: <Process-ID> <binding-URL> <lookup-URLs>...");
@@ -29,6 +29,8 @@ public class Main {
 			process.setProcess(i, (SESInterface) Naming.lookup(args[i + 2]));
 		System.out.println("Network registered successfully");
 
+		// Start execution after RMI setup has been completed
+		// Send 5 to 10 messages to a random process after a random delay of 100 to 500 ms
 		Random rand = new Random();
 		int m = 5 + rand.nextInt(5);
 		for (int i = 0; i < m; i++) {
