@@ -13,6 +13,8 @@ public class Process extends UnicastRemoteObject implements SinInterface {
 	private Token token;
 	private SinInterface[] processes;
 
+	private long csTime;
+
 	public class RequestJob implements Runnable {
 
 		private int process;
@@ -74,6 +76,8 @@ public class Process extends UnicastRemoteObject implements SinInterface {
 			}
 			doCS();
 			synchronized (Process.this) {
+				csTime = 0L;
+
 				states[myId] = State.Other;
 				token.states[myId] = State.Other;
 				for (int i = 0; i < processes.length; i++)
@@ -131,8 +135,12 @@ public class Process extends UnicastRemoteObject implements SinInterface {
 		System.out.println("Created process "+id+" with states "+Arrays.toString(states));
 	}
 
-	public void tryAccessCS() throws RemoteException {
+	public void tryAccessCS(long time) throws RemoteException {
 		synchronized (this) {
+			if (csTime < time)
+				csTime = time;
+
+			System.out.println("Require access to CS");
 			if (states[myId] == State.Holding) {
 				System.out.println("Sending requesting to self");
 				processes[myId].requestToken(myId, requestIds[myId]);
@@ -160,7 +168,14 @@ public class Process extends UnicastRemoteObject implements SinInterface {
 	}
 
 	private void doCS() {
-		System.out.println("Critical Section!");
+		System.out.println("Entering Critical Section");
+		try {
+			Thread.sleep(csTime);
+		} catch (InterruptedException e) {
+			e.printStackTrace();
+		} finally {
+			System.out.println("Exiting Critical Section");
+		}
 	}
 
 	public SinInterface getProcess(int i) {
