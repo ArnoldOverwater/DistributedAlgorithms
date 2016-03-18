@@ -6,7 +6,7 @@ def main():
 	i = 0;
 	try:
 		while True:
-			with open("../bin/process" + str(i) + ".log", 'r') as f:
+			with open("../bin/ses_process" + str(i) + ".log", 'r') as f:
 				for line in f:
 					read_log(line, i)
 			i += 1
