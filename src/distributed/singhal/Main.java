@@ -38,13 +38,14 @@ public class Main {
 		int c = 3 + rand.nextInt(4);
 		for (int i = 0; i < c; i++) {
 			// Random idle time
-			Thread.sleep(rand.nextInt(5) * 100L);
+			Thread.sleep(1000L + rand.nextInt(5) * 1000L);
 
-			process.tryAccessCS();
+			// Random time needed for CS
+			process.tryAccessCS(100L + rand.nextInt(5) * 100L);
 		}
 
-		System.out.println("Main thread finished; waiting 10 seconds to end process");
-		Thread.sleep(10000L);
+		System.out.println("Main thread finished; waiting 30 seconds to end process");
+		Thread.sleep(30000L);
 		System.exit(0);
 	}
 
