@@ -7,6 +7,10 @@ import java.rmi.NotBoundException;
 import java.rmi.RemoteException;
 import java.util.Random;
 
+/**
+ * Simulation of one process execution of a Singhal's mutual exclusion algorithm.
+ * Needs one running VM per process and a running `rmiregistry` for a successful simulation.
+ */
 public class Main {
 
 	public static void main(String[] args) throws RemoteException, MalformedURLException, AlreadyBoundException, InterruptedException, NotBoundException {
@@ -15,6 +19,7 @@ public class Main {
 			System.exit(-1);
 		}
 
+		// Description in usage message above
 		int id = Integer.parseInt(args[0]);
 		int n = Integer.parseInt(args[1]);
 		System.out.println(n+" processes");
@@ -34,6 +39,7 @@ public class Main {
 		System.out.println("Waiting 5 seconds before other processed have set references");
 		Thread.sleep(5000L);
 
+		// Randomly generate a number of CS requests, time needed in CS, and idle times
 		Random rand = new Random();
 		int c = 3 + rand.nextInt(4);
 		for (int i = 0; i < c; i++) {
@@ -44,6 +50,7 @@ public class Main {
 			process.tryAccessCS(100L + rand.nextInt(5) * 100L);
 		}
 
+		// Assume every CS execution of all processes is done by then
 		System.out.println("Main thread finished; waiting 30 seconds to end process");
 		Thread.sleep(30000L);
 		System.exit(0);
