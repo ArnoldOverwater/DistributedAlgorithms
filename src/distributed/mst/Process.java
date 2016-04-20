@@ -151,9 +151,15 @@ public class Process extends UnicastRemoteObject implements MSTInterface {
 	}
 
 	@Override
-	public void changeRoot(int fromId) throws RemoteException {
-		// TODO Auto-generated method stub
-
+	public void changeRoot() throws RemoteException {
+		if (toBestMOE.state == EdgeState.InMST)
+			toBestMOE.process.changeRoot();
+		else {
+			toBestMOE.process.connect(myId, level);
+			toBestMOE.state = EdgeState.InMST;
+			unknownEdges.remove(toBestMOE);
+			inMSTEdges.add(toBestMOE);
+		}
 	}
 
 	@Override
