@@ -44,7 +44,7 @@ public class Process extends UnicastRemoteObject implements MSTInterface {
 		long minWeight = Long.MAX_VALUE;
 		Edge minEdge = null;
 		for (Edge e : edges) {
-			if (e.weight < minWeight)
+			if (e != null && e.weight < minWeight)
 				minEdge = e;
 		}
 		minEdge.state = EdgeState.InMST;
