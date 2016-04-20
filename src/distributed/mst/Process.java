@@ -1,8 +1,6 @@
 package distributed.mst;
 
 import java.rmi.RemoteException;
-import java.rmi.server.RMIClientSocketFactory;
-import java.rmi.server.RMIServerSocketFactory;
 import java.rmi.server.UnicastRemoteObject;
 import java.util.LinkedList;
 import java.util.List;
@@ -37,12 +35,12 @@ public class Process extends UnicastRemoteObject implements MSTInterface {
 		this.inMSTEdges = new LinkedList<Edge>();
 	}
 
-	public void startMST() {
+	public void startMST() throws RemoteException {
 		if (state == State.Sleeping)
 			wakeup();
 	}
 
-	private void wakeup() {
+	private void wakeup() throws RemoteException {
 		long minWeight = Long.MAX_VALUE;
 		Edge minEdge = null;
 		for (Edge e : edges) {
@@ -96,7 +94,7 @@ public class Process extends UnicastRemoteObject implements MSTInterface {
 		}
 	}
 
-	private void test() {
+	private void test() throws RemoteException {
 		if (! unknownEdges.isEmpty()) {
 			testEdge = unknownEdges.get(0);
 			testEdge.process.test(myId, level, fragment);
@@ -143,7 +141,7 @@ public class Process extends UnicastRemoteObject implements MSTInterface {
 		}
 	}
 
-	private void report() {
+	private void report() throws RemoteException {
 		if (findCount == 0 && testEdge == null) {
 			state = State.Found;
 			toCore.process.report(myId, bestMOE);
