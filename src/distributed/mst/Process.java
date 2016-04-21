@@ -44,8 +44,10 @@ public class Process extends UnicastRemoteObject implements MSTInterface {
 		long minWeight = Long.MAX_VALUE;
 		Edge minEdge = null;
 		for (Edge e : edges) {
-			if (e != null && e.weight < minWeight)
+			if (e != null && e.weight < minWeight) {
+				minWeight = e.weight;
 				minEdge = e;
+			}
 		}
 		minEdge.state = EdgeState.InMST;
 		unknownEdges.remove(minEdge);
@@ -84,14 +86,14 @@ public class Process extends UnicastRemoteObject implements MSTInterface {
 		if (level > this.level) {
 			// TODO Message queue
 		} else if (fragment != this.fragment)
-			accept(myId);
+			edges[fromId].process.accept(myId);
 		else {
 			if (edges[fromId].state == EdgeState.Unknown) {
 				edges[fromId].state = EdgeState.NotInMST;
 				unknownEdges.remove(edges[fromId]);
 			}
 			if (testEdge != edges[fromId])
-				reject(myId);
+				edges[fromId].process.reject(myId);
 			else
 				test();
 		}
