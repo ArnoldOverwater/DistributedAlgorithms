@@ -66,9 +66,11 @@ public class Process extends UnicastRemoteObject implements MSTInterface {
 		this.toBestMOE = null;
 		this.bestMOE = Long.MAX_VALUE;
 		for (Edge e : inMSTEdges) {
-			e.process.initiate(myId, level, fragment, state);
-			if (state == State.Find)
-				findCount++;
+			if (e != edges[fromId]) {
+				e.process.initiate(myId, level, fragment, state);
+				if (state == State.Find)
+					findCount++;
+			}
 		}
 		if (state == State.Find)
 			test();
@@ -87,7 +89,8 @@ public class Process extends UnicastRemoteObject implements MSTInterface {
 			if (edges[fromId].state == EdgeState.Unknown) {
 				edges[fromId].state = EdgeState.NotInMST;
 				unknownEdges.remove(edges[fromId]);
-			} if (testEdge != edges[fromId])
+			}
+			if (testEdge != edges[fromId])
 				reject(myId);
 			else
 				test();
