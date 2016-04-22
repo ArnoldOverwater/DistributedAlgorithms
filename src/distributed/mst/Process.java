@@ -36,8 +36,10 @@ public class Process extends UnicastRemoteObject implements MSTInterface {
 	}
 
 	public void startMST() throws RemoteException {
-		if (state == State.Sleeping)
-			wakeup();
+		synchronized (this) {
+			if (state == State.Sleeping)
+				wakeup();
+		}
 	}
 
 	private void wakeup() throws RemoteException {
@@ -59,43 +61,45 @@ public class Process extends UnicastRemoteObject implements MSTInterface {
 	}
 
 	@Override
-	public void initiate(int fromId, int level, long fragment, State state)
-			throws RemoteException {
-		this.level = level;
-		this.fragment = fragment;
-		this.state = state;
-		this.toCore = edges[fromId];
-		this.toBestMOE = null;
-		this.bestMOE = Long.MAX_VALUE;
-		for (Edge e : inMSTEdges) {
-			if (e != edges[fromId]) {
-				e.process.initiate(myId, level, fragment, state);
-				if (state == State.Find)
-					findCount++;
+	public void initiate(int fromId, int level, long fragment, State state) throws RemoteException {
+		synchronized (this) {
+			this.level = level;
+			this.fragment = fragment;
+			this.state = state;
+			this.toCore = edges[fromId];
+			this.toBestMOE = null;
+			this.bestMOE = Long.MAX_VALUE;
+			for (Edge e : inMSTEdges) {
+				if (e != edges[fromId]) {
+					e.process.initiate(myId, level, fragment, state);
+					if (state == State.Find)
+						findCount++;
+				}
 			}
+			if (state == State.Find)
+				test();
 		}
-		if (state == State.Find)
-			test();
 	}
 
 	@Override
-	public void test(int fromId, int level, long fragment)
-			throws RemoteException {
-		if (state == State.Sleeping)
-			wakeup();
-		if (level > this.level) {
-			// TODO Message queue
-		} else if (fragment != this.fragment)
-			edges[fromId].process.accept(myId);
-		else {
-			if (edges[fromId].state == EdgeState.Unknown) {
-				edges[fromId].state = EdgeState.NotInMST;
-				unknownEdges.remove(edges[fromId]);
+	public void test(int fromId, int level, long fragment) throws RemoteException {
+		synchronized (this) {
+			if (state == State.Sleeping)
+				wakeup();
+			if (level > this.level) {
+				// TODO Message queue
+			} else if (fragment != this.fragment)
+				edges[fromId].process.accept(myId);
+			else {
+				if (edges[fromId].state == EdgeState.Unknown) {
+					edges[fromId].state = EdgeState.NotInMST;
+					unknownEdges.remove(edges[fromId]);
+				}
+				if (testEdge != edges[fromId])
+					edges[fromId].process.reject(myId);
+				else
+					test();
 			}
-			if (testEdge != edges[fromId])
-				edges[fromId].process.reject(myId);
-			else
-				test();
 		}
 	}
 
@@ -111,38 +115,44 @@ public class Process extends UnicastRemoteObject implements MSTInterface {
 
 	@Override
 	public void reject(int fromId) throws RemoteException {
-		if (edges[fromId].state == EdgeState.Unknown) {
-			edges[fromId].state = EdgeState.NotInMST;
-			unknownEdges.remove(edges[fromId]);
+		synchronized (this) {
+			if (edges[fromId].state == EdgeState.Unknown) {
+				edges[fromId].state = EdgeState.NotInMST;
+				unknownEdges.remove(edges[fromId]);
+			}
+			test();
 		}
-		test();
 	}
 
 	@Override
 	public void accept(int fromId) throws RemoteException {
-		testEdge = null;
-		if (edges[fromId].weight < bestMOE) {
-			toBestMOE = edges[fromId];
-			bestMOE = toBestMOE.weight;
+		synchronized (this) {
+			testEdge = null;
+			if (edges[fromId].weight < bestMOE) {
+				toBestMOE = edges[fromId];
+				bestMOE = toBestMOE.weight;
+			}
+			report();
 		}
-		report();
 	}
 
 	@Override
 	public void report(int fromId, long weight) throws RemoteException {
-		if (edges[fromId] != toCore) {
-			findCount--;
-			if (weight < bestMOE) {
-				bestMOE = weight;
-				toBestMOE = edges[fromId];
+		synchronized (this) {
+			if (edges[fromId] != toCore) {
+				findCount--;
+				if (weight < bestMOE) {
+					bestMOE = weight;
+					toBestMOE = edges[fromId];
+				}
+				report();
+			} else if (state == State.Find) {
+				// TODO: Message queue
+			} else if (weight > bestMOE)
+				changeRootInternal();
+			else if (weight == Long.MAX_VALUE && bestMOE == Long.MAX_VALUE) {
+				// TODO: HALT
 			}
-			report();
-		} else if (state == State.Find) {
-			// TODO: Message queue
-		} else if (weight > bestMOE)
-			changeRoot();
-		else if (weight == Long.MAX_VALUE && bestMOE == Long.MAX_VALUE) {
-			// TODO: HALT
 		}
 	}
 
@@ -155,6 +165,12 @@ public class Process extends UnicastRemoteObject implements MSTInterface {
 
 	@Override
 	public void changeRoot() throws RemoteException {
+		synchronized (this) {
+			changeRootInternal();
+		}
+	}
+
+	private void changeRootInternal() throws RemoteException {
 		if (toBestMOE.state == EdgeState.InMST)
 			toBestMOE.process.changeRoot();
 		else {
@@ -167,19 +183,21 @@ public class Process extends UnicastRemoteObject implements MSTInterface {
 
 	@Override
 	public void connect(int fromId, int level) throws RemoteException {
-		if (state == State.Sleeping)
-			wakeup();
-		if (level < this.level) {
-			edges[fromId].state = EdgeState.InMST;
-			unknownEdges.remove(edges[fromId]);
-			inMSTEdges.add(edges[fromId]);
-			edges[fromId].process.initiate(myId, this.level, fragment, state);
-			if (state == State.Find)
-				findCount++;
-		} else if (edges[fromId].state == EdgeState.Unknown) {
-			// TODO: Message queue
-		} else
-			edges[fromId].process.initiate(myId, this.level + 1, edges[fromId].weight, State.Find);
+		synchronized (this) {
+			if (state == State.Sleeping)
+				wakeup();
+			if (level < this.level) {
+				edges[fromId].state = EdgeState.InMST;
+				unknownEdges.remove(edges[fromId]);
+				inMSTEdges.add(edges[fromId]);
+				edges[fromId].process.initiate(myId, this.level, fragment, state);
+				if (state == State.Find)
+					findCount++;
+			} else if (edges[fromId].state == EdgeState.Unknown) {
+				// TODO: Message queue
+			} else
+				edges[fromId].process.initiate(myId, this.level + 1, edges[fromId].weight, State.Find);
+		}
 	}
 
 }
