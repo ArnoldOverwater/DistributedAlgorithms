@@ -1,6 +1,6 @@
 package distributed.mst;
 
-public class Edge {
+public class Edge implements Comparable<Edge> {
 
 	final int destinationId;
 	final long weight;
@@ -11,6 +11,16 @@ public class Edge {
 		this.destinationId = destinationId;
 		this.weight = weight;
 		this.state = EdgeState.Unknown;
+	}
+
+	@Override
+	public int compareTo(Edge that) {
+		if (this.weight < that.weight)
+			return -1;
+		else if (this.weight > that.weight)
+			return 1;
+		else
+			return this.destinationId - that.destinationId;
 	}
 
 }

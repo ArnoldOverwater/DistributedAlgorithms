@@ -2,8 +2,10 @@ package distributed.mst;
 
 import java.rmi.RemoteException;
 import java.rmi.server.UnicastRemoteObject;
-import java.util.LinkedList;
-import java.util.List;
+import java.util.PriorityQueue;
+import java.util.Queue;
+import java.util.Set;
+import java.util.TreeSet;
 
 public class Process extends UnicastRemoteObject implements MSTInterface {
 	private static final long serialVersionUID = 2588333077731364976L;
@@ -19,20 +21,20 @@ public class Process extends UnicastRemoteObject implements MSTInterface {
 	private long bestMOE;
 	private Edge testEdge;
 
-	private List<Edge> unknownEdges;
-	private List<Edge> inMSTEdges;
+	private Queue<Edge> unknownEdges;
+	private Set<Edge> inMSTEdges;
 
 	public Process(int id, Edge[] edges) throws RemoteException {
 		super(0);
 		this.myId = id;
 		this.edges = edges;
 		this.state = State.Sleeping;
-		this.unknownEdges = new LinkedList<Edge>();
+		this.unknownEdges = new PriorityQueue<Edge>();
 		for (Edge e : edges) {
 			if (e != null)
 				this.unknownEdges.add(e);
 		}
-		this.inMSTEdges = new LinkedList<Edge>();
+		this.inMSTEdges = new TreeSet<Edge>();
 	}
 
 	public void startMST() throws RemoteException {
@@ -105,7 +107,7 @@ public class Process extends UnicastRemoteObject implements MSTInterface {
 
 	private void test() throws RemoteException {
 		if (! unknownEdges.isEmpty()) {
-			testEdge = unknownEdges.get(0);
+			testEdge = unknownEdges.peek();
 			testEdge.process.test(myId, level, fragment);
 		} else {
 			testEdge = null;
