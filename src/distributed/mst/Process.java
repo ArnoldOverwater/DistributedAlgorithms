@@ -400,4 +400,8 @@ public class Process extends UnicastRemoteObject implements MSTInterface {
 		return state == State.Halted;
 	}
 
+	public Set<Edge> getTreeEdges() {
+		return inMSTEdges;
+	}
+
 }
