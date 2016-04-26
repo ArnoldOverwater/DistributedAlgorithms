@@ -1,5 +1,6 @@
 package distributed.mst;
 
+import java.io.PrintStream;
 import java.rmi.RemoteException;
 import java.rmi.server.UnicastRemoteObject;
 import java.util.PriorityQueue;
@@ -23,6 +24,8 @@ public class Process extends UnicastRemoteObject implements MSTInterface {
 
 	private Queue<Edge> unknownEdges;
 	private Set<Edge> inMSTEdges;
+
+	private PrintStream log;
 
 	private class SendInitiate implements Runnable {
 
@@ -172,6 +175,10 @@ public class Process extends UnicastRemoteObject implements MSTInterface {
 	}
 
 	public Process(int id, Edge[] edges) throws RemoteException {
+		this(id, edges, System.out);
+	}
+
+	public Process(int id, Edge[] edges, PrintStream log) throws RemoteException {
 		super(0);
 		this.myId = id;
 		this.edges = edges;
@@ -182,6 +189,7 @@ public class Process extends UnicastRemoteObject implements MSTInterface {
 				this.unknownEdges.add(e);
 		}
 		this.inMSTEdges = new TreeSet<Edge>();
+		this.log = log;
 	}
 
 	public void startMST() throws RemoteException {
@@ -192,6 +200,7 @@ public class Process extends UnicastRemoteObject implements MSTInterface {
 	}
 
 	private void wakeup() throws RemoteException {
+		log.println("Woken up");
 		long minWeight = Long.MAX_VALUE;
 		Edge minEdge = null;
 		for (Edge e : edges) {
@@ -216,6 +225,7 @@ public class Process extends UnicastRemoteObject implements MSTInterface {
 
 	private void initiate(Edge from, int level, long fragment, State state) throws RemoteException {
 		synchronized (this) {
+			log.println("Initiate(Level = "+level+", Fragment = "+fragment+", State = "+state+") along "+from);
 			this.level = level;
 			this.fragment = fragment;
 			this.state = state;
@@ -229,8 +239,10 @@ public class Process extends UnicastRemoteObject implements MSTInterface {
 						findCount++;
 				}
 			}
-			if (state == State.Find)
+			if (state == State.Find) {
+				log.println("Find count = "+findCount);
 				test();
+			}
 			notifyAll();
 		}
 	}
@@ -242,6 +254,7 @@ public class Process extends UnicastRemoteObject implements MSTInterface {
 
 	private void test(Edge from, int level, long fragment) throws RemoteException {
 		synchronized (this) {
+			log.println("Test(Level = "+level+", Fragment = "+fragment+") along "+from);
 			if (state == State.Sleeping)
 				wakeup();
 			while (level > this.level) {
@@ -270,6 +283,7 @@ public class Process extends UnicastRemoteObject implements MSTInterface {
 	private void test() throws RemoteException {
 		if (! unknownEdges.isEmpty()) {
 			testEdge = unknownEdges.peek();
+			log.println("Testing "+testEdge);
 			new Thread(new SendTest(testEdge, level, fragment)).start();
 		} else {
 			testEdge = null;
@@ -284,6 +298,7 @@ public class Process extends UnicastRemoteObject implements MSTInterface {
 
 	private void reject(Edge from) throws RemoteException {
 		synchronized (this) {
+			log.println("Reject along "+from);
 			if (from.state == EdgeState.Unknown) {
 				from.state = EdgeState.NotInMST;
 				unknownEdges.remove(from);
@@ -300,6 +315,7 @@ public class Process extends UnicastRemoteObject implements MSTInterface {
 
 	private void accept(Edge from) throws RemoteException {
 		synchronized (this) {
+			log.println("Accept along "+from);
 			testEdge = null;
 			if (from.weight < bestMOE) {
 				toBestMOE = from;
@@ -316,6 +332,7 @@ public class Process extends UnicastRemoteObject implements MSTInterface {
 
 	private void report(Edge from, long weight) throws RemoteException {
 		synchronized (this) {
+			log.println("Report(Weight = "+weight+") along "+from);
 			if (from != toCore) {
 				findCount--;
 				if (weight < bestMOE) {
@@ -335,6 +352,7 @@ public class Process extends UnicastRemoteObject implements MSTInterface {
 					changeRootInternal();
 				else if (weight == Long.MAX_VALUE && bestMOE == Long.MAX_VALUE) {
 					state = State.Halted;
+					log.println("Halted");
 					notifyAll();
 				}
 			}
@@ -344,6 +362,7 @@ public class Process extends UnicastRemoteObject implements MSTInterface {
 	private void report() throws RemoteException {
 		if (findCount == 0 && testEdge == null) {
 			state = State.Found;
+			log.println("Reporting best candidate "+bestMOE+" to "+toCore);
 			new Thread(new SendReport(toCore, bestMOE)).start();
 		}
 	}
@@ -356,6 +375,7 @@ public class Process extends UnicastRemoteObject implements MSTInterface {
 	}
 
 	private void changeRootInternal() throws RemoteException {
+		log.println("Changing root");
 		if (toBestMOE.state == EdgeState.InMST)
 			new Thread(new SendChangeRoot(toBestMOE)).start();
 		else {
@@ -374,12 +394,14 @@ public class Process extends UnicastRemoteObject implements MSTInterface {
 
 	private void connect(Edge from, int level) throws RemoteException {
 		synchronized (this) {
+			log.println("Connect(Level = "+level+") along "+from);
 			if (state == State.Sleeping)
 				wakeup();
 			if (level < this.level) {
 				from.state = EdgeState.InMST;
 				unknownEdges.remove(from);
 				inMSTEdges.add(from);
+				log.println("Absolbing fragment with level "+level+" to form level "+this.level+" along "+from);
 				new Thread(new SendInitiate(from, this.level, fragment, state)).start();
 				if (state == State.Find)
 					findCount++;
@@ -391,6 +413,7 @@ public class Process extends UnicastRemoteObject implements MSTInterface {
 						e.printStackTrace();
 					}
 				}
+				log.println("Merging fragment with level "+level+" to form level "+(this.level + 1)+" along "+from);
 				new Thread(new SendInitiate(from, this.level + 1, from.weight, State.Find)).start();
 			}
 		}
