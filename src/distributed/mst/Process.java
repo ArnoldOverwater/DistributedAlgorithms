@@ -334,7 +334,8 @@ public class Process extends UnicastRemoteObject implements MSTInterface {
 				if (weight > bestMOE)
 					changeRootInternal();
 				else if (weight == Long.MAX_VALUE && bestMOE == Long.MAX_VALUE) {
-					// TODO: HALT
+					state = State.Halted;
+					notifyAll();
 				}
 			}
 		}
@@ -393,6 +394,10 @@ public class Process extends UnicastRemoteObject implements MSTInterface {
 				new Thread(new SendInitiate(from, this.level + 1, from.weight, State.Find)).start();
 			}
 		}
+	}
+
+	public boolean isHalted() {
+		return state == State.Halted;
 	}
 
 }
