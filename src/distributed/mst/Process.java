@@ -84,6 +84,7 @@ public class Process extends UnicastRemoteObject implements MSTInterface {
 			}
 			if (state == State.Find)
 				test();
+			notifyAll();
 		}
 	}
 
@@ -96,14 +97,20 @@ public class Process extends UnicastRemoteObject implements MSTInterface {
 		synchronized (this) {
 			if (state == State.Sleeping)
 				wakeup();
-			if (level > this.level) {
-				// TODO Message queue
-			} else if (fragment != this.fragment)
+			while (level > this.level) {
+				try {
+					wait();
+				} catch (InterruptedException e) {
+					e.printStackTrace();
+				}
+			}
+			if (fragment != this.fragment)
 				from.process.accept(myId);
 			else {
 				if (from.state == EdgeState.Unknown) {
 					from.state = EdgeState.NotInMST;
 					unknownEdges.remove(from);
+					notifyAll();
 				}
 				if (testEdge != from)
 					from.process.reject(myId);
@@ -133,6 +140,7 @@ public class Process extends UnicastRemoteObject implements MSTInterface {
 			if (from.state == EdgeState.Unknown) {
 				from.state = EdgeState.NotInMST;
 				unknownEdges.remove(from);
+				notifyAll();
 			}
 			test();
 		}
@@ -168,12 +176,19 @@ public class Process extends UnicastRemoteObject implements MSTInterface {
 					toBestMOE = from;
 				}
 				report();
-			} else if (state == State.Find) {
-				// TODO: Message queue
-			} else if (weight > bestMOE)
-				changeRootInternal();
-			else if (weight == Long.MAX_VALUE && bestMOE == Long.MAX_VALUE) {
-				// TODO: HALT
+			} else {
+				while (state == State.Find) {
+					try {
+						wait();
+					} catch (InterruptedException e) {
+						e.printStackTrace();
+					}
+				}
+				if (weight > bestMOE)
+					changeRootInternal();
+				else if (weight == Long.MAX_VALUE && bestMOE == Long.MAX_VALUE) {
+					// TODO: HALT
+				}
 			}
 		}
 	}
@@ -200,6 +215,7 @@ public class Process extends UnicastRemoteObject implements MSTInterface {
 			toBestMOE.state = EdgeState.InMST;
 			unknownEdges.remove(toBestMOE);
 			inMSTEdges.add(toBestMOE);
+			notifyAll();
 		}
 	}
 
@@ -219,10 +235,16 @@ public class Process extends UnicastRemoteObject implements MSTInterface {
 				from.process.initiate(myId, this.level, fragment, state);
 				if (state == State.Find)
 					findCount++;
-			} else if (from.state == EdgeState.Unknown) {
-				// TODO: Message queue
-			} else
+			} else {
+				while (from.state == EdgeState.Unknown) {
+					try {
+						wait();
+					} catch (InterruptedException e) {
+						e.printStackTrace();
+					}
+				}
 				from.process.initiate(myId, this.level + 1, from.weight, State.Find);
+			}
 		}
 	}
 
