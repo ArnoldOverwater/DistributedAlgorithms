@@ -215,6 +215,7 @@ public class Process extends UnicastRemoteObject implements MSTInterface {
 		level = 0;
 		state = State.Found;
 		findCount = 0;
+		log.println("Sending Connect(Level = 0) along "+minEdge);
 		new Thread(new SendConnect(minEdge, 0)).start();
 	}
 
@@ -225,7 +226,7 @@ public class Process extends UnicastRemoteObject implements MSTInterface {
 
 	private void initiate(Edge from, int level, long fragment, State state) throws RemoteException {
 		synchronized (this) {
-			log.println("Initiate(Level = "+level+", Fragment = "+fragment+", State = "+state+") along "+from);
+			log.println("Received Initiate(Level = "+level+", Fragment = "+fragment+", State = "+state+") along "+from);
 			this.level = level;
 			this.fragment = fragment;
 			this.state = state;
@@ -234,6 +235,7 @@ public class Process extends UnicastRemoteObject implements MSTInterface {
 			this.bestMOE = Long.MAX_VALUE;
 			for (Edge e : inMSTEdges) {
 				if (e != from) {
+					log.println("Sending Initiate(Level = "+level+", Fragment = "+fragment+", State = "+state+") along "+e);
 					new Thread(new SendInitiate(e, level, fragment, state)).start();
 					if (state == State.Find)
 						findCount++;
@@ -254,7 +256,7 @@ public class Process extends UnicastRemoteObject implements MSTInterface {
 
 	private void test(Edge from, int level, long fragment) throws RemoteException {
 		synchronized (this) {
-			log.println("Test(Level = "+level+", Fragment = "+fragment+") along "+from);
+			log.println("Received Test(Level = "+level+", Fragment = "+fragment+") along "+from);
 			if (state == State.Sleeping)
 				wakeup();
 			while (level > this.level) {
@@ -264,17 +266,19 @@ public class Process extends UnicastRemoteObject implements MSTInterface {
 					e.printStackTrace();
 				}
 			}
-			if (fragment != this.fragment)
+			if (fragment != this.fragment) {
+				log.println("Sending Accept along "+from);
 				new Thread(new SendAccept(from)).start();
-			else {
+			} else {
 				if (from.state == EdgeState.Unknown) {
 					from.state = EdgeState.NotInMST;
 					unknownEdges.remove(from);
 					notifyAll();
 				}
-				if (testEdge != from)
+				if (testEdge != from) {
+					log.println("Sending Reject along "+from);
 					new Thread(new SendReject(from)).start();
-				else
+				} else
 					test();
 			}
 		}
@@ -283,7 +287,7 @@ public class Process extends UnicastRemoteObject implements MSTInterface {
 	private void test() throws RemoteException {
 		if (! unknownEdges.isEmpty()) {
 			testEdge = unknownEdges.peek();
-			log.println("Testing "+testEdge);
+			log.println("Sending Test(Level = "+level+", Fragment = "+fragment+") along "+testEdge);
 			new Thread(new SendTest(testEdge, level, fragment)).start();
 		} else {
 			testEdge = null;
@@ -298,7 +302,7 @@ public class Process extends UnicastRemoteObject implements MSTInterface {
 
 	private void reject(Edge from) throws RemoteException {
 		synchronized (this) {
-			log.println("Reject along "+from);
+			log.println("Received Reject along "+from);
 			if (from.state == EdgeState.Unknown) {
 				from.state = EdgeState.NotInMST;
 				unknownEdges.remove(from);
@@ -315,7 +319,7 @@ public class Process extends UnicastRemoteObject implements MSTInterface {
 
 	private void accept(Edge from) throws RemoteException {
 		synchronized (this) {
-			log.println("Accept along "+from);
+			log.println("Received Accept along "+from);
 			testEdge = null;
 			if (from.weight < bestMOE) {
 				toBestMOE = from;
@@ -332,7 +336,7 @@ public class Process extends UnicastRemoteObject implements MSTInterface {
 
 	private void report(Edge from, long weight) throws RemoteException {
 		synchronized (this) {
-			log.println("Report(Weight = "+weight+") along "+from);
+			log.println("Received Report(Weight = "+weight+") along "+from);
 			if (from != toCore) {
 				findCount--;
 				if (weight < bestMOE) {
@@ -362,7 +366,7 @@ public class Process extends UnicastRemoteObject implements MSTInterface {
 	private void report() throws RemoteException {
 		if (findCount == 0 && testEdge == null) {
 			state = State.Found;
-			log.println("Reporting best candidate "+bestMOE+" to "+toCore);
+			log.println("Sending Report(Weight = "+bestMOE+") along "+toCore);
 			new Thread(new SendReport(toCore, bestMOE)).start();
 		}
 	}
@@ -379,6 +383,7 @@ public class Process extends UnicastRemoteObject implements MSTInterface {
 		if (toBestMOE.state == EdgeState.InMST)
 			new Thread(new SendChangeRoot(toBestMOE)).start();
 		else {
+			log.println("Sending Connect(Level = "+level+") along "+toBestMOE);
 			new Thread(new SendConnect(toBestMOE, level)).start();
 			toBestMOE.state = EdgeState.InMST;
 			unknownEdges.remove(toBestMOE);
@@ -394,14 +399,15 @@ public class Process extends UnicastRemoteObject implements MSTInterface {
 
 	private void connect(Edge from, int level) throws RemoteException {
 		synchronized (this) {
-			log.println("Connect(Level = "+level+") along "+from);
+			log.println("Received Connect(Level = "+level+") along "+from);
 			if (state == State.Sleeping)
 				wakeup();
 			if (level < this.level) {
 				from.state = EdgeState.InMST;
 				unknownEdges.remove(from);
 				inMSTEdges.add(from);
-				log.println("Absolbing fragment with level "+level+" to form level "+this.level+" along "+from);
+				log.println("Absolving fragment with level "+level+" by this fragment of level "+this.level);
+				log.println("Sending Initiate(Level = "+this.level+", Fragment = "+fragment+", State = "+state+") along "+from);
 				new Thread(new SendInitiate(from, this.level, fragment, state)).start();
 				if (state == State.Find)
 					findCount++;
@@ -413,7 +419,8 @@ public class Process extends UnicastRemoteObject implements MSTInterface {
 						e.printStackTrace();
 					}
 				}
-				log.println("Merging fragment with level "+level+" to form level "+(this.level + 1)+" along "+from);
+				log.println("Merging fragments with level "+level+" to form level "+(this.level + 1));
+				log.println("Sending Initiate(Level = "+this.level+", Fragment = "+from.weight+", State = Find) along "+from);
 				new Thread(new SendInitiate(from, this.level + 1, from.weight, State.Find)).start();
 			}
 		}
