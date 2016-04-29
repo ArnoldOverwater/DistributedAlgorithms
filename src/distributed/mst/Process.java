@@ -259,12 +259,19 @@ public class Process extends UnicastRemoteObject implements MSTInterface {
 			log.println("Received Test(Level = "+level+", Fragment = "+fragment+") along "+from);
 			if (state == State.Sleeping)
 				wakeup();
-			while (level > this.level) {
-				try {
-					wait();
-				} catch (InterruptedException e) {
-					e.printStackTrace();
-				}
+			if (level > this.level) {
+				log.println("Putting Test(Level = "+level+", Fragment = "+fragment+") along "+from+" on hold");
+				do {
+					try {
+						wait();
+					} catch (InterruptedException e) {
+						e.printStackTrace();
+					}
+					// This can have been changed while waiting
+					//if (from.state == EdgeState.InMST)
+						//return;
+				} while (level > this.level);
+				log.println("Resuming Test(Level = "+level+", Fragment = "+fragment+") along "+from);
 			}
 			if (fragment != this.fragment) {
 				log.println("Sending Accept along "+from);
@@ -345,12 +352,16 @@ public class Process extends UnicastRemoteObject implements MSTInterface {
 				}
 				report();
 			} else {
-				while (state == State.Find) {
-					try {
-						wait();
-					} catch (InterruptedException e) {
-						e.printStackTrace();
-					}
+				if (state == State.Find) {
+					log.println("Putting Report(Weight = "+weight+") along "+from+" on hold");
+					do {
+						try {
+							wait();
+						} catch (InterruptedException e) {
+							e.printStackTrace();
+						}
+					} while (state == State.Find);
+					log.println("Resuming Report(Weight = "+weight+") along "+from);
 				}
 				if (weight > bestMOE)
 					changeRootInternal();
@@ -412,15 +423,19 @@ public class Process extends UnicastRemoteObject implements MSTInterface {
 				if (state == State.Find)
 					findCount++;
 			} else {
-				while (from.state == EdgeState.Unknown) {
-					try {
-						wait();
-					} catch (InterruptedException e) {
-						e.printStackTrace();
-					}
+				if (from.state == EdgeState.Unknown) {
+					log.println("Putting Connect(Level = "+level+") along "+from+" on hold");
+					do {
+						try {
+							wait();
+						} catch (InterruptedException e) {
+							e.printStackTrace();
+						}
+					} while (from.state == EdgeState.Unknown);
+					log.println("Resuming Connect(Level = "+level+") along "+from);
 				}
 				log.println("Merging fragments with level "+level+" to form level "+(this.level + 1));
-				log.println("Sending Initiate(Level = "+this.level+", Fragment = "+from.weight+", State = Find) along "+from);
+				log.println("Sending Initiate(Level = "+(this.level + 1)+", Fragment = "+from.weight+", State = Find) along "+from);
 				new Thread(new SendInitiate(from, this.level + 1, from.weight, State.Find)).start();
 			}
 		}
