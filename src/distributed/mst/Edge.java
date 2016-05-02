@@ -25,7 +25,7 @@ public class Edge implements Comparable<Edge> {
 
 	@Override
 	public String toString() {
-		return "Edge(destination = "+destinationId+", weight = "+weight+")";
+		return "Edge(destination = "+destinationId+", weight = "+weight+", state = "+state+")";
 	}
 
 }
