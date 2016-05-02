@@ -49,7 +49,7 @@ public class Process extends UnicastRemoteObject implements MSTInterface {
 				e.printStackTrace();
 			}
 		}
-		
+
 	}
 
 	private class SendTest implements Runnable {
@@ -72,7 +72,7 @@ public class Process extends UnicastRemoteObject implements MSTInterface {
 				e.printStackTrace();
 			}
 		}
-		
+
 	}
 
 	private class SendReject implements Runnable {
@@ -91,7 +91,7 @@ public class Process extends UnicastRemoteObject implements MSTInterface {
 				e.printStackTrace();
 			}
 		}
-		
+
 	}
 
 	private class SendAccept implements Runnable {
@@ -110,7 +110,7 @@ public class Process extends UnicastRemoteObject implements MSTInterface {
 				e.printStackTrace();
 			}
 		}
-		
+
 	}
 
 	private class SendReport implements Runnable {
@@ -131,7 +131,7 @@ public class Process extends UnicastRemoteObject implements MSTInterface {
 				e.printStackTrace();
 			}
 		}
-		
+
 	}
 
 	private static class SendChangeRoot implements Runnable {
@@ -150,7 +150,7 @@ public class Process extends UnicastRemoteObject implements MSTInterface {
 				e.printStackTrace();
 			}
 		}
-		
+
 	}
 
 	private class SendConnect implements Runnable {
@@ -171,7 +171,26 @@ public class Process extends UnicastRemoteObject implements MSTInterface {
 				e.printStackTrace();
 			}
 		}
-		
+
+	}
+
+	private class SendHalt implements Runnable {
+
+		private Edge edge;
+
+		private SendHalt(Edge edge) {
+			this.edge = edge;
+		}
+
+		@Override
+		public void run() {
+			try {
+				edge.process.halt(myId);
+			} catch (RemoteException e) {
+				e.printStackTrace();
+			}
+		}
+
 	}
 
 	public Process(int id, Edge[] edges) throws RemoteException {
@@ -190,6 +209,7 @@ public class Process extends UnicastRemoteObject implements MSTInterface {
 		}
 		this.inMSTEdges = new TreeSet<Edge>();
 		this.log = log;
+		log.println("Process "+id+", Edges: "+unknownEdges);
 	}
 
 	public void startMST() throws RemoteException {
@@ -269,7 +289,7 @@ public class Process extends UnicastRemoteObject implements MSTInterface {
 					}
 					// This can have been changed while waiting
 					//if (from.state == EdgeState.InMST)
-						//return;
+					//return;
 				} while (level > this.level);
 				log.println("Resuming Test(Level = "+level+", Fragment = "+fragment+") along "+from);
 			}
@@ -366,9 +386,8 @@ public class Process extends UnicastRemoteObject implements MSTInterface {
 				if (weight > bestMOE)
 					changeRootInternal();
 				else if (weight == Long.MAX_VALUE && bestMOE == Long.MAX_VALUE) {
-					state = State.Halted;
-					log.println("Halted");
-					notifyAll();
+					log.println("Sending Halt along "+from);
+					new Thread(new SendHalt(from)).start();
 				}
 			}
 		}
@@ -423,21 +442,46 @@ public class Process extends UnicastRemoteObject implements MSTInterface {
 				if (state == State.Find)
 					findCount++;
 			} else {
-				if (from.state == EdgeState.Unknown) {
-					log.println("Putting Connect(Level = "+level+") along "+from+" on hold");
-					do {
-						try {
-							wait();
-						} catch (InterruptedException e) {
-							e.printStackTrace();
-						}
-					} while (from.state == EdgeState.Unknown);
-					log.println("Resuming Connect(Level = "+level+") along "+from);
-				}
-				log.println("Merging fragments with level "+level+" to form level "+(this.level + 1));
-				log.println("Sending Initiate(Level = "+(this.level + 1)+", Fragment = "+from.weight+", State = Find) along "+from);
-				new Thread(new SendInitiate(from, this.level + 1, from.weight, State.Find)).start();
+//				if (from.state == EdgeState.Unknown) {
+//					log.println("Putting Connect(Level = "+level+") along "+from+" on hold");
+//					do {
+//						try {
+//							wait();
+//						} catch (InterruptedException e) {
+//							e.printStackTrace();
+//						}
+//					} while (from.state == EdgeState.Unknown);
+//					log.println("Resuming Connect(Level = "+level+") along "+from);
+//				}
+				// Not documented, but seems necessary //
+				from.state = EdgeState.InMST; ///////////
+				unknownEdges.remove(from); //////////////
+				inMSTEdges.add(from); ///////////////////
+				/////////////////////////////////////////
+				// Increasing the level here and now seems necessary rather than waiting for the Initiate from the other side
+				log.println("Merging fragments with level "+level+" to form level "+(++this.level));
+				log.println("Sending Initiate(Level = "+this.level+", Fragment = "+from.weight+", State = Find) along "+from);
+				new Thread(new SendInitiate(from, this.level, from.weight, State.Find)).start();
 			}
+		}
+	}
+
+	public void halt(int fromId) {
+		halt(edges[fromId]);
+	}
+
+	private void halt(Edge from) {
+		synchronized (this) {
+			log.println("Received Halt along "+from);
+			for (Edge e : inMSTEdges) {
+				if (e != from) {
+					log.println("Sending Halt along "+e);
+					new Thread(new SendHalt(e)).start();
+				}
+			}
+			state = State.Halted;
+			log.println("Finished, Edges in MST: "+inMSTEdges+", Unknown edges: "+unknownEdges);
+			notifyAll();
 		}
 	}
 

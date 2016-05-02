@@ -19,4 +19,6 @@ public interface MSTInterface extends Remote {
 
 	public void connect(int fromId, int level) throws RemoteException;
 
+	public void halt(int fromId) throws RemoteException;
+
 }
