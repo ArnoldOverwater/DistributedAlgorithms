@@ -220,17 +220,9 @@ public class Process extends UnicastRemoteObject implements MSTInterface {
 	}
 
 	private void wakeup() throws RemoteException {
-		log.println("Woken up");
-		long minWeight = Long.MAX_VALUE;
-		Edge minEdge = null;
-		for (Edge e : edges) {
-			if (e != null && e.weight < minWeight) {
-				minWeight = e.weight;
-				minEdge = e;
-			}
-		}
+		log.print("Woken up; ");
+		Edge minEdge = unknownEdges.poll();
 		minEdge.state = EdgeState.InMST;
-		unknownEdges.remove(minEdge);
 		inMSTEdges.add(minEdge);
 		level = 0;
 		state = State.Found;
@@ -398,6 +390,7 @@ public class Process extends UnicastRemoteObject implements MSTInterface {
 			state = State.Found;
 			log.println("Sending Report(Weight = "+bestMOE+") along "+toCore);
 			new Thread(new SendReport(toCore, bestMOE)).start();
+			notifyAll();
 		}
 	}
 
@@ -432,6 +425,17 @@ public class Process extends UnicastRemoteObject implements MSTInterface {
 			log.println("Received Connect(Level = "+level+") along "+from);
 			if (state == State.Sleeping)
 				wakeup();
+			if (level >= this.level && from.state == EdgeState.Unknown) {
+				log.println("Putting Connect(Level = "+level+") along "+from+" on hold");
+				do {
+					try {
+						wait();
+					} catch (InterruptedException e) {
+						e.printStackTrace();
+					}
+				} while (level >= this.level && from.state == EdgeState.Unknown);
+				log.println("Resuming Connect(Level = "+level+") along "+from);
+			}
 			if (level < this.level) {
 				from.state = EdgeState.InMST;
 				unknownEdges.remove(from);
@@ -442,26 +446,9 @@ public class Process extends UnicastRemoteObject implements MSTInterface {
 				if (state == State.Find)
 					findCount++;
 			} else {
-//				if (from.state == EdgeState.Unknown) {
-//					log.println("Putting Connect(Level = "+level+") along "+from+" on hold");
-//					do {
-//						try {
-//							wait();
-//						} catch (InterruptedException e) {
-//							e.printStackTrace();
-//						}
-//					} while (from.state == EdgeState.Unknown);
-//					log.println("Resuming Connect(Level = "+level+") along "+from);
-//				}
-				// Not documented, but seems necessary //
-				from.state = EdgeState.InMST; ///////////
-				unknownEdges.remove(from); //////////////
-				inMSTEdges.add(from); ///////////////////
-				/////////////////////////////////////////
-				// Increasing the level here and now seems necessary rather than waiting for the Initiate from the other side
-				log.println("Merging fragments with level "+level+" to form level "+(++this.level));
-				log.println("Sending Initiate(Level = "+this.level+", Fragment = "+from.weight+", State = Find) along "+from);
-				new Thread(new SendInitiate(from, this.level, from.weight, State.Find)).start();
+				log.println("Merging fragments with level "+level+" to form level "+(this.level + 1));
+				log.println("Sending Initiate(Level = "+(this.level + 1)+", Fragment = "+from.weight+", State = Find) along "+from);
+				new Thread(new SendInitiate(from, this.level + 1, from.weight, State.Find)).start();
 			}
 		}
 	}
