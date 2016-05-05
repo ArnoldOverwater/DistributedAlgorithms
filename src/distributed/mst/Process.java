@@ -467,7 +467,8 @@ public class Process extends UnicastRemoteObject implements MSTInterface {
 				}
 			}
 			state = State.Halted;
-			log.println("Finished, Edges in MST: "+inMSTEdges+", Unknown edges: "+unknownEdges);
+			log.println("Finished, Edges in MST: "+inMSTEdges);
+			log.println("Final fragment: "+fragment+", Final level: "+level);
 			notifyAll();
 		}
 	}
