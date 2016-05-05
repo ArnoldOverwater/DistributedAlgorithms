@@ -22,6 +22,9 @@ public class Process extends UnicastRemoteObject implements MSTInterface {
 	private long bestMOE;
 	private Edge testEdge;
 
+	// For maintaining causal ordering between merger Connect and merger Initiate
+	private boolean merged;
+
 	private Queue<Edge> unknownEdges;
 	private Set<Edge> inMSTEdges;
 
@@ -239,12 +242,25 @@ public class Process extends UnicastRemoteObject implements MSTInterface {
 	private void initiate(Edge from, int level, long fragment, State state) throws RemoteException {
 		synchronized (this) {
 			log.println("Received Initiate(Level = "+level+", Fragment = "+fragment+", State = "+state+") along "+from);
+			// A merger is happening, but the Connect hasn't been received
+			if (from.weight == fragment && ! merged) {
+				log.println("Putting Initiate(Level = "+level+", Fragment = "+fragment+", State = "+state+") along "+from+" on hold");
+				do {
+					try {
+						wait();
+					} catch (InterruptedException e) {
+						e.printStackTrace();
+					}
+				} while (! merged);
+				log.println("Resuming Initiate(Level = "+level+", Fragment = "+fragment+", State = "+state+") along "+from);
+			}
 			this.level = level;
 			this.fragment = fragment;
 			this.state = state;
 			this.toCore = from;
 			this.toBestMOE = null;
 			this.bestMOE = Long.MAX_VALUE;
+			this.merged = false;
 			for (Edge e : inMSTEdges) {
 				if (e != from) {
 					log.println("Sending Initiate(Level = "+level+", Fragment = "+fragment+", State = "+state+") along "+e);
@@ -279,9 +295,6 @@ public class Process extends UnicastRemoteObject implements MSTInterface {
 					} catch (InterruptedException e) {
 						e.printStackTrace();
 					}
-					// This can have been changed while waiting
-					//if (from.state == EdgeState.InMST)
-					//return;
 				} while (level > this.level);
 				log.println("Resuming Test(Level = "+level+", Fragment = "+fragment+") along "+from);
 			}
@@ -443,12 +456,14 @@ public class Process extends UnicastRemoteObject implements MSTInterface {
 				log.println("Absolving fragment with level "+level+" by this fragment of level "+this.level);
 				log.println("Sending Initiate(Level = "+this.level+", Fragment = "+fragment+", State = "+state+") along "+from);
 				new Thread(new SendInitiate(from, this.level, fragment, state)).start();
-				if (state == State.Find && /*Temporary workaround*/from != toCore/*for when Initiate came earlier*/)
+				if (state == State.Find)
 					findCount++;
 			} else {
 				log.println("Merging fragments with level "+level+" to form level "+(this.level + 1));
+				merged = true;
 				log.println("Sending Initiate(Level = "+(this.level + 1)+", Fragment = "+from.weight+", State = Find) along "+from);
 				new Thread(new SendInitiate(from, this.level + 1, from.weight, State.Find)).start();
+				notifyAll();
 			}
 		}
 	}
