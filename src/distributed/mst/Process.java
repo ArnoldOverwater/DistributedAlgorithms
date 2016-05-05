@@ -443,7 +443,7 @@ public class Process extends UnicastRemoteObject implements MSTInterface {
 				log.println("Absolving fragment with level "+level+" by this fragment of level "+this.level);
 				log.println("Sending Initiate(Level = "+this.level+", Fragment = "+fragment+", State = "+state+") along "+from);
 				new Thread(new SendInitiate(from, this.level, fragment, state)).start();
-				if (state == State.Find)
+				if (state == State.Find && /*Temporary workaround*/from != toCore/*for when Initiate came earlier*/)
 					findCount++;
 			} else {
 				log.println("Merging fragments with level "+level+" to form level "+(this.level + 1));
