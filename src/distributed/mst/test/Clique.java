@@ -53,7 +53,9 @@ public class Clique {
 		}
 
 		// Choose random process to start to ensure generality
-		processes[rand.nextInt(n)].startMST();
+		int id = rand.nextInt(n);
+		System.out.println("Started process "+id);
+		processes[id].startMST();
 		for (int i = 0; i < n; i++) {
 			synchronized (processes[i]) {
 				while (! processes[i].isHalted()) {
