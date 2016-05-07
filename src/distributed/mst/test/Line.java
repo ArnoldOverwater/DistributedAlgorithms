@@ -48,16 +48,10 @@ public class Line {
 		}
 
 		// Choose random process to start to ensure generality
-		int id = rand.nextInt(n);
-		System.out.println("Started process "+id);
-		processes[id].startMST();
+		Common.doTest(processes, rand.nextInt(n));
+
 		for (int i = 0; i < n; i++) {
-			synchronized (processes[i]) {
-				while (! processes[i].isHalted()) {
-					processes[i].wait();
-				}
-				logs[i].close();
-			}
+			logs[i].close();
 		}
 
 		System.exit(0);
