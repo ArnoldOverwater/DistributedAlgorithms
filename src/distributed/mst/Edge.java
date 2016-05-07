@@ -2,8 +2,8 @@ package distributed.mst;
 
 public class Edge implements Comparable<Edge> {
 
-	final int destinationId;
-	final long weight;
+	public final int destinationId;
+	public final long weight;
 	EdgeState state;
 	public MSTInterface process;
 
