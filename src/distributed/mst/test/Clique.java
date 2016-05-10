@@ -17,25 +17,9 @@ public class Clique {
 		}
 
 		int n = Integer.parseInt(args[0]);
-		int e = (n*(n-1))/2;
 
-		// Create clique, with each edge created for both end points
 		Random rand = new Random();
-		Edge[][] edges = new Edge[n][n];
-		// Mechanism to make all edges have unique weight
-		boolean[] weights = new boolean[e];
-		for (int i = 0; i < n; i++) {
-			for (int j = i+1; j < n; j++) {
-				int index = rand.nextInt(e--);
-				for (int k = 0; k <= index; k++)
-					if (weights[k])
-						index++;
-				// Extra (post-)increment to ensure non-zero positive
-				weights[index++] = true;
-				edges[i][j] = new Edge(j, index);
-				edges[j][i] = new Edge(i, index);
-			}
-		}
+		Edge[][] edges = generateClique(n, rand);
 
 		Process[] processes = new Process[n];
 		PrintStream[] logs = new PrintStream[n];
@@ -60,6 +44,26 @@ public class Clique {
 		}
 
 		System.exit(0);
+	}
+
+	public static Edge[][] generateClique(int n, Random rand) {
+		int e = (n*(n-1))/2;
+		Edge[][] edges = new Edge[n][n];
+		// Mechanism to make all edges have unique weight
+		boolean[] weights = new boolean[e];
+		for (int i = 0; i < n; i++) {
+			for (int j = i+1; j < n; j++) {
+				int index = rand.nextInt(e--);
+				for (int k = 0; k <= index; k++)
+					if (weights[k])
+						index++;
+				// Extra (post-)increment to ensure non-zero positive
+				weights[index++] = true;
+				edges[i][j] = new Edge(j, index);
+				edges[j][i] = new Edge(i, index);
+			}
+		}
+		return edges;
 	}
 
 }
