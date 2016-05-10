@@ -36,7 +36,6 @@ public class MainStart {
 		System.out.println("Waiting 5 seconds before other processed are bound");
 		Thread.sleep(5000L);
 
-		process.startMST();
 		for (Edge e : edges) {
 			if (e != null)
 				e.process = (MSTInterface) Naming.lookup(args[2]+e.destinationId);
@@ -46,6 +45,7 @@ public class MainStart {
 		System.out.println("Waiting 5 seconds before other processed have set references");
 		Thread.sleep(5000L);
 
+		process.startMST();
 		synchronized (process) {
 			while (! process.isHalted()) {
 				process.wait();
