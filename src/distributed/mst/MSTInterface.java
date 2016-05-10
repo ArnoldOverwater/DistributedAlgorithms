@@ -15,7 +15,7 @@ public interface MSTInterface extends Remote {
 
 	public void report(int fromId, long weight) throws RemoteException;
 
-	public void changeRoot() throws RemoteException;
+	public void changeRoot(int fromId) throws RemoteException;
 
 	public void connect(int fromId, int level) throws RemoteException;
 

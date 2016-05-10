@@ -179,7 +179,7 @@ public class Process extends UnicastRemoteObject implements MSTInterface {
 
 	}
 
-	private static class SendChangeRoot implements Runnable {
+	private class SendChangeRoot implements Runnable {
 
 		private Edge edge;
 		private long delay;
@@ -197,7 +197,7 @@ public class Process extends UnicastRemoteObject implements MSTInterface {
 			} catch (InterruptedException e) {
 			} finally {
 				try {
-					edge.process.changeRoot();
+					edge.process.changeRoot(myId);
 				} catch (RemoteException e) {
 					e.printStackTrace();
 				}
@@ -504,9 +504,13 @@ public class Process extends UnicastRemoteObject implements MSTInterface {
 	}
 
 	@Override
-	public void changeRoot() throws RemoteException {
+	public void changeRoot(int fromId) throws RemoteException {
+		changeRoot(edges[fromId]);
+	}
+
+	private void changeRoot(Edge from) throws RemoteException {
 		synchronized (this) {
-			log.println("Received ChangeRoot");
+			log.println("Received ChangeRoot along "+from);
 			changeRootInternal();
 		}
 	}
