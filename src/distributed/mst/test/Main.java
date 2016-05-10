@@ -51,6 +51,8 @@ public class Main {
 			}
 		}
 
+		System.out.println("Waiting 5 seconds before ending JVM");
+		Thread.sleep(5000L);
 		System.exit(0);
 	}
 
