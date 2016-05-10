@@ -26,7 +26,7 @@ public class Clique {
 			do {
 				startProcesses[rand.nextInt(n)] = true;
 			} while (rand.nextFloat() < 0.5f);
-			PrintStream file = new PrintStream("clique"+n+"-"+i+".log");
+			PrintStream file = new PrintStream("clique"+n+"-"+i+".sh");
 			Common.generateSHFile(file, edges, startProcesses);
 			file.close();
 		}
