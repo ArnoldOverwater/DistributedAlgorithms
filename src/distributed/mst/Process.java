@@ -23,9 +23,6 @@ public class Process extends UnicastRemoteObject implements MSTInterface {
 	private long bestMOE;
 	private Edge testEdge;
 
-	// For maintaining causal ordering between merger Connect and merger Initiate
-	private boolean merged;
-
 	private Queue<Edge> unknownEdges;
 	private Set<Edge> inMSTEdges;
 
@@ -34,13 +31,15 @@ public class Process extends UnicastRemoteObject implements MSTInterface {
 
 	private class SendInitiate implements Runnable {
 
+		private long order;
 		private Edge edge;
 		private int level;
 		private long fragment;
 		private State state;
 		private long delay;
 
-		private SendInitiate(Edge edge, int level, long fragment, State state, long delay) {
+		private SendInitiate(long order, Edge edge, int level, long fragment, State state, long delay) {
+			this.order = order;
 			this.edge = edge;
 			this.level = level;
 			this.fragment = fragment;
@@ -56,7 +55,7 @@ public class Process extends UnicastRemoteObject implements MSTInterface {
 			} catch (InterruptedException e) {
 			} finally {
 				try {
-					edge.process.initiate(myId, level, fragment, state);
+					edge.process.initiate(order, myId, level, fragment, state);
 				} catch (RemoteException e) {
 					e.printStackTrace();
 				}
@@ -152,11 +151,13 @@ public class Process extends UnicastRemoteObject implements MSTInterface {
 
 	private class SendReport implements Runnable {
 
+		private long order;
 		private Edge edge;
 		private long weight;
 		private long delay;
 
-		private SendReport(Edge edge, long weight, long delay) {
+		private SendReport(long order, Edge edge, long weight, long delay) {
+			this.order = order;
 			this.edge = edge;
 			this.weight = weight;
 			this.delay = delay;
@@ -170,7 +171,7 @@ public class Process extends UnicastRemoteObject implements MSTInterface {
 			} catch (InterruptedException e) {
 			} finally {
 				try {
-					edge.process.report(myId, weight);
+					edge.process.report(order, myId, weight);
 				} catch (RemoteException e) {
 					e.printStackTrace();
 				}
@@ -181,10 +182,12 @@ public class Process extends UnicastRemoteObject implements MSTInterface {
 
 	private class SendChangeRoot implements Runnable {
 
+		private long order;
 		private Edge edge;
 		private long delay;
 
-		private SendChangeRoot(Edge edge, long delay) {
+		private SendChangeRoot(long order, Edge edge, long delay) {
+			this.order = order;
 			this.edge = edge;
 			this.delay = delay;
 		}
@@ -197,7 +200,7 @@ public class Process extends UnicastRemoteObject implements MSTInterface {
 			} catch (InterruptedException e) {
 			} finally {
 				try {
-					edge.process.changeRoot(myId);
+					edge.process.changeRoot(order, myId);
 				} catch (RemoteException e) {
 					e.printStackTrace();
 				}
@@ -208,11 +211,13 @@ public class Process extends UnicastRemoteObject implements MSTInterface {
 
 	private class SendConnect implements Runnable {
 
+		private long order;
 		private Edge edge;
 		private int level;
 		private long delay;
 
-		private SendConnect(Edge edge, int level, long delay) {
+		private SendConnect(long order, Edge edge, int level, long delay) {
+			this.order = order;
 			this.edge = edge;
 			this.level = level;
 			this.delay = delay;
@@ -226,7 +231,7 @@ public class Process extends UnicastRemoteObject implements MSTInterface {
 			} catch (InterruptedException e) {
 			} finally {
 				try {
-					edge.process.connect(myId, level);
+					edge.process.connect(order, myId, level);
 				} catch (RemoteException e) {
 					e.printStackTrace();
 				}
@@ -237,10 +242,12 @@ public class Process extends UnicastRemoteObject implements MSTInterface {
 
 	private class SendHalt implements Runnable {
 
+		private long order;
 		private Edge edge;
 		private long delay;
 
-		private SendHalt(Edge edge, long delay) {
+		private SendHalt(long order, Edge edge, long delay) {
+			this.order = order;
 			this.edge = edge;
 			this.delay = delay;
 		}
@@ -253,7 +260,7 @@ public class Process extends UnicastRemoteObject implements MSTInterface {
 			} catch (InterruptedException e) {
 			} finally {
 				try {
-					edge.process.halt(myId);
+					edge.process.halt(order, myId);
 				} catch (RemoteException e) {
 					e.printStackTrace();
 				}
@@ -309,43 +316,31 @@ public class Process extends UnicastRemoteObject implements MSTInterface {
 		long delay = 0L;
 		if (delayer != null)
 			delay = 10 * delayer.nextInt(5);
-		new Thread(new SendConnect(minEdge, 0, delay)).start();
+		new Thread(new SendConnect(minEdge.sendOrder++, minEdge, 0, delay)).start();
 	}
 
 	@Override
-	public void initiate(int fromId, int level, long fragment, State state) throws RemoteException {
-		initiate(edges[fromId], level, fragment, state);
+	public void initiate(long order, int fromId, int level, long fragment, State state) throws RemoteException {
+		initiate(order, edges[fromId], level, fragment, state);
 	}
 
-	private void initiate(Edge from, int level, long fragment, State state) throws RemoteException {
+	private void initiate(long order, Edge from, int level, long fragment, State state) throws RemoteException {
 		synchronized (this) {
+			checkOrder(order, from);
 			log.println("Received Initiate(Level = "+level+", Fragment = "+fragment+", State = "+state+") along "+from);
-			// A merger is happening, but the Connect hasn't been received
-			if (from.weight == fragment && ! merged) {
-				log.println("Putting Initiate(Level = "+level+", Fragment = "+fragment+", State = "+state+") along "+from+" on hold");
-				do {
-					try {
-						wait();
-					} catch (InterruptedException e) {
-						e.printStackTrace();
-					}
-				} while (! merged);
-				log.println("Resuming Initiate(Level = "+level+", Fragment = "+fragment+", State = "+state+") along "+from);
-			}
 			this.level = level;
 			this.fragment = fragment;
 			this.state = state;
 			this.toCore = from;
 			this.toBestMOE = null;
 			this.bestMOE = Long.MAX_VALUE;
-			this.merged = false;
 			for (Edge e : inMSTEdges) {
 				if (e != from) {
 					log.println("Sending Initiate(Level = "+level+", Fragment = "+fragment+", State = "+state+") along "+e);
 					long delay = 0L;
 					if (delayer != null)
 						delay = 10 * delayer.nextInt(5);
-					new Thread(new SendInitiate(e, level, fragment, state, delay)).start();
+					new Thread(new SendInitiate(e.sendOrder++, e, level, fragment, state, delay)).start();
 					if (state == State.Find)
 						findCount++;
 				}
@@ -452,12 +447,13 @@ public class Process extends UnicastRemoteObject implements MSTInterface {
 	}
 
 	@Override
-	public void report(int fromId, long weight) throws RemoteException {
-		report(edges[fromId], weight);
+	public void report(long order, int fromId, long weight) throws RemoteException {
+		report(order, edges[fromId], weight);
 	}
 
-	private void report(Edge from, long weight) throws RemoteException {
+	private void report(long order, Edge from, long weight) throws RemoteException {
 		synchronized (this) {
+			checkOrder(order, from);
 			log.println("Received Report(Weight = "+weight+") along "+from);
 			if (from != toCore) {
 				findCount--;
@@ -485,9 +481,10 @@ public class Process extends UnicastRemoteObject implements MSTInterface {
 					long delay = 0L;
 					if (delayer != null)
 						delay = 10 * delayer.nextInt(5);
-					new Thread(new SendHalt(from, delay)).start();
+					new Thread(new SendHalt(from.sendOrder++, from, delay)).start();
 				}
 			}
+			notifyAll();
 		}
 	}
 
@@ -498,20 +495,22 @@ public class Process extends UnicastRemoteObject implements MSTInterface {
 			long delay = 0L;
 			if (delayer != null)
 				delay = 10 * delayer.nextInt(5);
-			new Thread(new SendReport(toCore, bestMOE, delay)).start();
+			new Thread(new SendReport(toCore.sendOrder++, toCore, bestMOE, delay)).start();
 			notifyAll();
 		}
 	}
 
 	@Override
-	public void changeRoot(int fromId) throws RemoteException {
-		changeRoot(edges[fromId]);
+	public void changeRoot(long order, int fromId) throws RemoteException {
+		changeRoot(order, edges[fromId]);
 	}
 
-	private void changeRoot(Edge from) throws RemoteException {
+	private void changeRoot(long order, Edge from) throws RemoteException {
 		synchronized (this) {
+			checkOrder(order, from);
 			log.println("Received ChangeRoot along "+from);
 			changeRootInternal();
+			notifyAll();
 		}
 	}
 
@@ -521,27 +520,27 @@ public class Process extends UnicastRemoteObject implements MSTInterface {
 			long delay = 0L;
 			if (delayer != null)
 				delay = delayer.nextInt(8);
-			new Thread(new SendChangeRoot(toBestMOE, delay)).start();
+			new Thread(new SendChangeRoot(toBestMOE.sendOrder++, toBestMOE, delay)).start();
 		} else {
 			log.println("Sending Connect(Level = "+level+") along "+toBestMOE);
 			long delay = 0L;
 			if (delayer != null)
 				delay = 10 * delayer.nextInt(5);
-			new Thread(new SendConnect(toBestMOE, level, delay)).start();
+			new Thread(new SendConnect(toBestMOE.sendOrder++, toBestMOE, level, delay)).start();
 			toBestMOE.state = EdgeState.InMST;
 			unknownEdges.remove(toBestMOE);
 			inMSTEdges.add(toBestMOE);
-			notifyAll();
 		}
 	}
 
 	@Override
-	public void connect(int fromId, int level) throws RemoteException {
-		connect(edges[fromId], level);
+	public void connect(long order, int fromId, int level) throws RemoteException {
+		connect(order, edges[fromId], level);
 	}
 
-	private void connect(Edge from, int level) throws RemoteException {
+	private void connect(long order, Edge from, int level) throws RemoteException {
 		synchronized (this) {
+			checkOrder(order, from);
 			log.println("Received Connect(Level = "+level+") along "+from);
 			if (state == State.Sleeping)
 				wakeup();
@@ -565,28 +564,29 @@ public class Process extends UnicastRemoteObject implements MSTInterface {
 				long delay = 0L;
 				if (delayer != null)
 					delay = 10 * delayer.nextInt(5);
-				new Thread(new SendInitiate(from, this.level, fragment, state, delay)).start();
+				new Thread(new SendInitiate(from.sendOrder++, from, this.level, fragment, state, delay)).start();
 				if (state == State.Find)
 					findCount++;
 			} else {
 				log.println("Merging fragments with level "+level+" to form level "+(this.level + 1));
-				merged = true;
 				log.println("Sending Initiate(Level = "+(this.level + 1)+", Fragment = "+from.weight+", State = Find) along "+from);
 				long delay = 0L;
 				if (delayer != null)
 					delay = 10 * delayer.nextInt(5);
-				new Thread(new SendInitiate(from, this.level + 1, from.weight, State.Find, delay)).start();
-				notifyAll();
+				new Thread(new SendInitiate(from.sendOrder++, from, this.level + 1, from.weight, State.Find, delay)).start();
 			}
+			notifyAll();
 		}
 	}
 
-	public void halt(int fromId) {
-		halt(edges[fromId]);
+	@Override
+	public void halt(long order, int fromId) {
+		halt(order, edges[fromId]);
 	}
 
-	private void halt(Edge from) {
+	private void halt(long order, Edge from) {
 		synchronized (this) {
+			checkOrder(order, from);
 			log.println("Received Halt along "+from);
 			for (Edge e : inMSTEdges) {
 				if (e != from) {
@@ -594,7 +594,7 @@ public class Process extends UnicastRemoteObject implements MSTInterface {
 					long delay = 0L;
 					if (delayer != null)
 						delay = 10 * delayer.nextInt(5);
-					new Thread(new SendHalt(e, delay)).start();
+					new Thread(new SendHalt(e.sendOrder++, e, delay)).start();
 				}
 			}
 			state = State.Halted;
@@ -602,6 +602,20 @@ public class Process extends UnicastRemoteObject implements MSTInterface {
 			log.println("Final fragment: "+fragment+", Final level: "+level);
 			notifyAll();
 		}
+	}
+
+	private void checkOrder(long order, Edge from) {
+		if (from.receiveOrder != order) {
+			log.println("Putting message on hold because its order "+order+" != FIFO order "+from.receiveOrder);
+			do {
+				try {
+					wait();
+				} catch (InterruptedException e) {
+					e.printStackTrace();
+				}
+			} while (from.receiveOrder != order);
+		}
+		from.receiveOrder++;
 	}
 
 	public boolean isHalted() {

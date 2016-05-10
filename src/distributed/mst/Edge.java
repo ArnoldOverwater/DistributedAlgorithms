@@ -5,7 +5,11 @@ public class Edge implements Comparable<Edge> {
 	public final int destinationId;
 	public final long weight;
 	EdgeState state;
+
 	public MSTInterface process;
+
+	long sendOrder;
+	long receiveOrder;
 
 	public Edge(int destinationId, long weight) {
 		this.destinationId = destinationId;

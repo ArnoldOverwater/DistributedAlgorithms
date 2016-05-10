@@ -5,7 +5,7 @@ import java.rmi.RemoteException;
 
 public interface MSTInterface extends Remote {
 
-	public void initiate(int fromId, int level, long fragment, State state) throws RemoteException;
+	public void initiate(long order, int fromId, int level, long fragment, State state) throws RemoteException;
 
 	public void test(int fromId, int level, long fragment) throws RemoteException;
 
@@ -13,12 +13,12 @@ public interface MSTInterface extends Remote {
 
 	public void accept(int fromId) throws RemoteException;
 
-	public void report(int fromId, long weight) throws RemoteException;
+	public void report(long order, int fromId, long weight) throws RemoteException;
 
-	public void changeRoot(int fromId) throws RemoteException;
+	public void changeRoot(long order, int fromId) throws RemoteException;
 
-	public void connect(int fromId, int level) throws RemoteException;
+	public void connect(long order, int fromId, int level) throws RemoteException;
 
-	public void halt(int fromId) throws RemoteException;
+	public void halt(long order, int fromId) throws RemoteException;
 
 }
