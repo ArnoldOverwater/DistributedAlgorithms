@@ -61,7 +61,7 @@ public class EdgeProbability {
 		}
 		int e = n;
 		boolean[] weights = new boolean[--e];
-		for (int p : prüfer) {
+		for (int p : prüfer)
 			for (int j = 0; j < n; j++)
 				if (p != j && degrees[j] == 0) {
 					int index = rand.nextInt(e--);
@@ -76,7 +76,6 @@ public class EdgeProbability {
 					degrees[j]--;
 					break;
 				}
-		}
 		int u = -1, v = -1;
 		for (int i = 0; i < n; i++)
 			if (degrees[i] == 0) {
@@ -98,7 +97,7 @@ public class EdgeProbability {
 
 		for (int i = 0; i < n; i++)
 			for (int j = i+1; j < n; j++)
-				if (edges[i][j] != null && rand.nextDouble() < edgeProbability) {
+				if (edges[i][j] == null && rand.nextDouble() < edgeProbability) {
 					long weight = Math.abs(rand.nextLong());
 					if (weight < n)
 						weight = n;
