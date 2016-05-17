@@ -26,7 +26,7 @@ public class EdgeProbability {
 		Process[] processes = new Process[n];
 		PrintStream[] logs = new PrintStream[n];
 		for (int i = 0; i < n; i++) {
-			logs[i] = new PrintStream("process"+i+".log");
+			logs[i] = new PrintStream("mst_process"+i+".log");
 			processes[i] = new Process(i, edges[i], logs[i]);
 		}
 

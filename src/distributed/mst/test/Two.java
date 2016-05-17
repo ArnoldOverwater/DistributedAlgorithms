@@ -11,7 +11,7 @@ public class Two {
 
 	public static void main(String[] args) throws RemoteException, InterruptedException, FileNotFoundException {
 		Edge[] e0 = new Edge[] {null, new Edge(1, 1)}, e1 = new Edge[] {new Edge(0, 1), null};
-		PrintStream log0 = new PrintStream("process0.log"), log1 = new PrintStream("process1.log");
+		PrintStream log0 = new PrintStream("mst_process0.log"), log1 = new PrintStream("mst_process1.log");
 		Process p0 = new Process(0, e0, log0), p1 = new Process(1, e1, log1);
 		e0[1].process = p1;
 		e1[0].process = p0;
