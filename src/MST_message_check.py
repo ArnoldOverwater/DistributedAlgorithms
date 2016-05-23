@@ -1,4 +1,4 @@
-import json
+import re
 
 s_init = 0
 s_test = 0
@@ -20,6 +20,9 @@ r_halt = 0
 
 merge  = 0
 absorb = 0
+
+frag   = -1
+level  = -1
 
 def main():
 	i = 0;
@@ -89,6 +92,16 @@ def read_log(line, i):
 	elif line.startswith("Absolving fragment"):
 		global absorb
 		absorb += 1
+	elif line.startswith("Final fragment:"):
+		global frag
+		global level
+		info = [int(s) for s in re.findall(r'(\d+)', line)]
+		if (level >= 0):
+			assert info[0] == frag
+			assert info[1] == level
+		else:
+			frag  = info[0]
+			level = info[1]
 
 def check_message_count():
 	global s_init
@@ -132,3 +145,5 @@ print(s_init+s_test+s_rej+s_acc+s_rep+s_chr+s_con+s_halt)
 print(merge)
 print(absorb)
 print(merge+absorb)
+print(frag)
+print(level)
