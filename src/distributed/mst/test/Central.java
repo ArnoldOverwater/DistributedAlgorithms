@@ -40,7 +40,7 @@ public class Central {
 		}
 
 		// Choose random process to start to ensure generality
-		Common.doTest(processes, 1 + rand.nextInt(n-1));
+		Common.doTest(processes, rand.nextInt(n));
 
 		for (int i = 0; i < n; i++) {
 			logs[i].close();
