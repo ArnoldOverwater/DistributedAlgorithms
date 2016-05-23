@@ -3,12 +3,10 @@ package distributed.mst.test;
 import java.io.FileNotFoundException;
 import java.io.PrintStream;
 import java.rmi.RemoteException;
-import java.util.Random;
-
 import distributed.mst.Edge;
 import distributed.mst.Process;
 
-public class Central {
+public class Central0 {
 
 	public static void main(String[] args) throws FileNotFoundException, RemoteException, InterruptedException {
 		if (args.length == 0) {
@@ -19,7 +17,6 @@ public class Central {
 		int n = Integer.parseInt(args[0]);
 
 		// Create centralised graph (already a tree), with each edge created for both end points
-		Random rand = new Random();
 		Edge[][] edges = new Edge[n][n];
 		for (int i = 1; i < n; i++) {
 			edges[0][i] = new Edge(i, i);
@@ -40,7 +37,7 @@ public class Central {
 		}
 
 		// Choose random process to start to ensure generality
-		Common.doTest(processes, 1 + rand.nextInt(n-1));
+		Common.doTest(processes, 0);
 
 		for (int i = 0; i < n; i++) {
 			logs[i].close();
